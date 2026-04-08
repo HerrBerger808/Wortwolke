@@ -1,0 +1,15 @@
+# Konfiguration (enthält Passwörter – niemals einchecken!)
+config.php
+
+# Logs
+*.log
+logs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db

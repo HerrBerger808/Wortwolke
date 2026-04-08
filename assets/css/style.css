@@ -1,0 +1,211 @@
+/* ============================================================
+   ARASAAC Wortwolke – Globale Styles
+   ============================================================ */
+
+/* ---- Farben ---- */
+:root {
+    --indigo:        #4f46e5;
+    --indigo-dark:   #3730a3;
+    --indigo-light:  #ede9fe;
+    --violet:        #7c3aed;
+    --green:         #059669;
+    --red:           #dc2626;
+    --gray-50:       #f9fafb;
+    --gray-100:      #f3f4f6;
+    --gray-200:      #e5e7eb;
+    --gray-400:      #9ca3af;
+    --gray-600:      #4b5563;
+    --gray-800:      #1f2937;
+}
+
+/* ---- Utility ---- */
+.text-indigo  { color: var(--indigo) !important; }
+.bg-indigo    { background-color: var(--indigo) !important; }
+.border-indigo { border-color: var(--indigo) !important; }
+
+.cursor-pointer { cursor: pointer; }
+.font-monospace { font-family: ui-monospace, 'Cascadia Code', 'Fira Mono', monospace; }
+
+/* ---- Admin-Layout ---- */
+.admin-body {
+    background: var(--gray-100);
+    min-height: 100vh;
+}
+
+.admin-nav.bg-indigo {
+    background: linear-gradient(135deg, var(--indigo), var(--violet)) !important;
+    box-shadow: 0 2px 12px rgba(79, 70, 229, .3);
+}
+
+.admin-nav .navbar-brand { font-size: 1rem; letter-spacing: .3px; }
+.admin-nav .nav-link      { font-size: .9rem; opacity: .85; transition: opacity .15s; }
+.admin-nav .nav-link.active,
+.admin-nav .nav-link:hover { opacity: 1; }
+
+.admin-content { max-width: 1200px; }
+
+/* ---- Karten ---- */
+.card {
+    border-radius: 12px !important;
+}
+.card-header {
+    border-radius: 12px 12px 0 0 !important;
+    border-bottom-color: var(--gray-200) !important;
+    font-size: .9rem;
+}
+
+/* ---- Session-Karten (Admin-Übersicht) ---- */
+.session-card { transition: box-shadow .2s, transform .2s; }
+.session-card:hover { box-shadow: 0 6px 24px rgba(79,70,229,.18) !important; transform: translateY(-2px); }
+
+.code-display {
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: 6px;
+    color: var(--indigo);
+    line-height: 1;
+    padding: 8px 0;
+}
+
+.stat-box {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: 10px;
+    padding: 8px 4px;
+}
+.stat-val { font-size: 1.3rem; font-weight: 700; color: var(--indigo); line-height: 1; }
+.stat-lbl { font-size: 10px; color: var(--gray-400); text-transform: uppercase; letter-spacing: .8px; margin-top: 2px; }
+
+/* ---- Buttons ---- */
+.btn-xs {
+    padding: 2px 8px;
+    font-size: 11px;
+    border-radius: 6px;
+}
+
+/* ---- Flash-Nachrichten ---- */
+.alert { border-radius: 10px; border: none; }
+
+/* ---- Formulare ---- */
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--indigo);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, .15);
+}
+
+/* ---- Symbol-Picker (Admin Create/Edit) ---- */
+.sym-results {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 24px;
+    margin-top: 6px;
+}
+
+.sym-result {
+    width: 82px;
+    text-align: center;
+    padding: 6px 4px;
+    border: 2px solid var(--gray-200);
+    border-radius: 10px;
+    cursor: pointer;
+    background: #fff;
+    transition: border-color .12s, background .12s, transform .1s;
+    user-select: none;
+    flex-shrink: 0;
+}
+.sym-result:hover { border-color: var(--indigo); background: var(--indigo-light); transform: translateY(-1px); }
+.sym-result:active { transform: scale(.93); }
+.sym-result.used  { opacity: .4; pointer-events: none; }
+.sym-result img   { width: 56px; height: 56px; object-fit: contain; display: block; margin: 0 auto; }
+.sym-result .kw   {
+    font-size: 10px; color: var(--gray-600);
+    margin-top: 3px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis;
+}
+
+.sym-selected-area {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    min-height: 130px;
+    padding: 10px;
+    border: 1px solid var(--gray-200);
+    border-radius: 10px;
+    background: var(--gray-50);
+}
+
+.sym-card-admin {
+    width: 98px;
+    text-align: center;
+    padding: 8px 6px 4px;
+    border: 2px solid var(--indigo);
+    border-radius: 12px;
+    background: #fff;
+    position: relative;
+    user-select: none;
+    box-shadow: 0 2px 8px rgba(79,70,229,.1);
+}
+.sym-card-admin img { width: 60px; height: 60px; object-fit: contain; display: block; margin: 0 auto; }
+.sym-card-admin input[type="text"] {
+    width: 100%;
+    font-size: 11px;
+    border: none;
+    border-top: 1px solid var(--gray-200);
+    text-align: center;
+    padding: 3px 2px;
+    margin-top: 4px;
+    background: transparent;
+    outline: none;
+    color: var(--gray-800);
+}
+.sym-card-admin input[type="text"]:focus { background: var(--indigo-light); border-radius: 0 0 4px 4px; }
+.sym-card-admin .del {
+    position: absolute; top: 3px; right: 3px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--red); color: #fff;
+    border: none; font-size: 10px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; padding: 0;
+    transition: transform .1s;
+}
+.sym-card-admin .del:hover { transform: scale(1.15); }
+
+/* ---- Modus-Optionen ---- */
+.mode-opt { cursor: pointer; transition: border-color .15s, background .15s; }
+.mode-opt:has(input:checked) {
+    border-color: var(--indigo) !important;
+    background: var(--indigo-light);
+}
+
+/* ---- Gedimmte Symbol-Sektion ---- */
+#symbolSection.dim {
+    opacity: .4;
+    pointer-events: none;
+    transition: opacity .2s;
+}
+
+/* ---- Teilnehmer-Ansicht (join.php) ---- */
+.text-indigo { color: var(--indigo); }
+
+/* Spinner-Farbe */
+.text-indigo.spinner-border { color: var(--indigo) !important; }
+
+/* ---- Responsive Anpassungen ---- */
+@media (max-width: 576px) {
+    .code-display { font-size: 1.5rem; letter-spacing: 4px; }
+    .admin-content { padding-left: 12px !important; padding-right: 12px !important; }
+    .stat-val { font-size: 1.1rem; }
+}
+
+@media (max-width: 768px) {
+    .sym-result { width: 72px; }
+    .sym-result img { width: 48px; height: 48px; }
+}
+
+/* ---- Animationen ---- */
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.card { animation: fadeInUp .2s ease both; }

@@ -1,0 +1,119 @@
+<?php
+// JavaScript für den Symbol-Picker (shared zwischen create.php und edit.php)
+// Benötigt $existingJs (JSON-Array der vorhandenen Symbole)
+?>
+<script>
+const MAX_SYM = <?= (int) WordCloudManager::MAX_SYMBOLS ?>;
+let symbols   = <?= $existingJs ?? '[]' ?>;
+let searchTimer = null;
+
+// ---- Initialisierung ----
+renderSymbols();
+syncModeVisibility();
+
+document.querySelectorAll('input[name="mode"]').forEach(r =>
+    r.addEventListener('change', syncModeVisibility)
+);
+
+function syncModeVisibility() {
+    const mode = document.querySelector('input[name="mode"]:checked')?.value || 'both';
+    document.getElementById('symbolSection').classList.toggle('dim', mode === 'search');
+}
+
+// ---- ARASAAC-Suche ----
+document.getElementById('symSearch').addEventListener('input', function () {
+    clearTimeout(searchTimer);
+    const q = this.value.trim();
+    document.getElementById('symHint').classList.toggle('d-none', q.length >= 2);
+    if (q.length < 2) { document.getElementById('symResults').innerHTML = ''; return; }
+    searchTimer = setTimeout(() => runSearch(q), 380);
+});
+
+function runSearch(q) {
+    const lang    = document.getElementById('symLang').value;
+    const spinner = document.getElementById('symSpinner');
+    const results = document.getElementById('symResults');
+    spinner.classList.remove('d-none');
+    results.innerHTML = '';
+
+    fetch('/api/search.php?q=' + encodeURIComponent(q) + '&lang=' + lang)
+        .then(r => r.json())
+        .then(data => {
+            spinner.classList.add('d-none');
+            if (!data.length) {
+                results.innerHTML = '<small class="text-muted">Keine Treffer.</small>';
+                return;
+            }
+            data.forEach(sym => {
+                const already = symbols.some(s => s.id === sym.id);
+                const d = document.createElement('div');
+                d.className = 'sym-result' + (already ? ' used' : '');
+                d.title     = sym.keywords.join(', ');
+                d.innerHTML = `<img src="${sym.image_url}" alt="" loading="lazy">
+                               <div class="kw">${esc(sym.keywords[0] || '')}</div>`;
+                if (!already) d.addEventListener('click', () => addSymbol(sym));
+                results.appendChild(d);
+            });
+        })
+        .catch(() => {
+            spinner.classList.add('d-none');
+            results.innerHTML = '<small class="text-danger">Suche fehlgeschlagen.</small>';
+        });
+}
+
+// ---- Symbol hinzufügen / entfernen ----
+function addSymbol(sym) {
+    if (symbols.length >= MAX_SYM) {
+        alert('Maximal ' + MAX_SYM + ' Symbole pro Sitzung.');
+        return;
+    }
+    if (symbols.some(s => s.id === sym.id)) return;
+    symbols.push({ id: sym.id, label: sym.keywords[0] || '', image_url: sym.image_url });
+    renderSymbols();
+    refreshResultsUsed();
+}
+
+function removeSymbol(id) {
+    symbols = symbols.filter(s => s.id !== id);
+    renderSymbols();
+    refreshResultsUsed();
+}
+
+function renderSymbols() {
+    const area  = document.getElementById('symSelected');
+    const empty = document.getElementById('symEmpty');
+    document.getElementById('symCount').textContent = symbols.length + ' / ' + MAX_SYM;
+
+    area.querySelectorAll('.sym-card-admin').forEach(el => el.remove());
+    empty.classList.toggle('d-none', symbols.length > 0);
+
+    symbols.forEach((sym, idx) => {
+        const d = document.createElement('div');
+        d.className = 'sym-card-admin';
+        d.innerHTML = `
+            <button type="button" class="del" onclick="removeSymbol(${sym.id})">&times;</button>
+            <img src="${sym.image_url}" alt="" loading="lazy">
+            <input type="hidden" name="symbol_id[]"    value="${sym.id}">
+            <input type="text"   name="symbol_label[]" value="${esc(sym.label)}"
+                   maxlength="80" placeholder="Beschriftung"
+                   oninput="symbols[${idx}].label = this.value">`;
+        area.appendChild(d);
+    });
+}
+
+function refreshResultsUsed() {
+    document.querySelectorAll('.sym-result').forEach(el => {
+        const img = el.querySelector('img');
+        if (!img) return;
+        const m = img.src.match(/\/(\d+)\/\d+_300\.png/);
+        if (!m)  return;
+        el.classList.toggle('used', symbols.some(s => s.id === parseInt(m[1])));
+    });
+}
+
+function esc(s) {
+    return String(s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+</script>
