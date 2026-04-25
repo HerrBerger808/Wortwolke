@@ -40,7 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($session['title'])) $errors[] = 'Bitte einen Titel eingeben.';
     if ($session['mode'] === 'symbols' && empty($symbols))
-        $errors[] = 'Im Modus „Nur Symbole" muss mindestens ein Symbol hinzugefügt werden.';
+        $errors[] = 'Im Modus "Nur Symbole" muss mindestens ein Symbol hinzugefuegt werden.';
 
     if (empty($errors)) {
         $mgr->updateSession($id, $session['title'], $session['mode'], $symbols);

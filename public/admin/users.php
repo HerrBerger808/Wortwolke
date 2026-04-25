@@ -32,10 +32,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ':h' => password_hash($pass, PASSWORD_BCRYPT, ['cost' => 12]),
                     ':a' => $isAdm,
                 ]);
-                $ok = "Benutzer „{$uname}" wurde angelegt.";
+                $ok = 'Benutzer "' . $uname . '" wurde angelegt.';
             } catch (\PDOException $e) {
                 $errors[] = str_contains($e->getMessage(), 'Duplicate')
-                    ? "Benutzername „{$uname}" ist bereits vergeben."
+                    ? 'Benutzername "' . $uname . '" ist bereits vergeben.'
                     : 'Datenbankfehler: ' . $e->getMessage();
             }
         }
@@ -58,7 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             if (empty($errors) && $target) {
                 $pdo->prepare("DELETE FROM wordcloud_users WHERE id = :id")->execute([':id' => $delId]);
-                $ok = "Benutzer „{$target['username']}" wurde gelöscht.";
+                $ok = 'Benutzer "' . $target['username'] . '" wurde gelöscht.';
             }
         }
     }
