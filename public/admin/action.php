@@ -25,10 +25,10 @@ if (!$session) {
 $title = $session['title'];
 
 match ($action) {
-    'close'  => [$mgr->closeSession($id),   setFlash('success', "Sitzung „{$title}" geschlossen.")],
-    'reopen' => [$mgr->reopenSession($id),  setFlash('success', "Sitzung „{$title}" wieder geöffnet.")],
-    'delete' => [$mgr->deleteSession($id),  setFlash('success', "Sitzung „{$title}" gelöscht.")],
-    'reset'  => [$mgr->resetVotes($id),     setFlash('success', "Stimmen der Sitzung „{$title}" zurückgesetzt.")],
+    'close'  => [$mgr->closeSession($id),   setFlash('success', 'Sitzung "' . $title . '" geschlossen.')],
+    'reopen' => [$mgr->reopenSession($id),  setFlash('success', 'Sitzung "' . $title . '" wieder geöffnet.')],
+    'delete' => [$mgr->deleteSession($id),  setFlash('success', 'Sitzung "' . $title . '" gelöscht.')],
+    'reset'  => [$mgr->resetVotes($id),     setFlash('success', 'Stimmen der Sitzung "' . $title . '" zurueckgesetzt.')],
     default  => null,
 };
 
