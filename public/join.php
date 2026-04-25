@@ -506,6 +506,7 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
     }
 
     /* ---- Start ---- */
+    window.toggleVote = toggleVote;
     pollCloud();
     setInterval(pollCloud, POLL_MS);
 })();
