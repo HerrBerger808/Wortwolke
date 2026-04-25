@@ -222,7 +222,7 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
             <span id="liveCount">Live</span>
         </div>
         <div class="code-badge"><?= e($session['session_code']) ?></div>
-        <button onclick="document.getElementById('qrOverlay').classList.toggle('d-none')"
+        <button onclick="document.getElementById('qrOverlay').style.display='flex'"
                 style="background:rgba(255,255,255,.15);border:none;border-radius:8px;
                        color:#fff;padding:5px 10px;cursor:pointer;font-size:13px;"
                 title="QR-Code & Link anzeigen">
@@ -232,10 +232,10 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 </div>
 
 <!-- QR-/Link-Overlay -->
-<div id="qrOverlay" class="d-none" style="
-        position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;
-        display:flex!important;align-items:center;justify-content:center;flex-direction:column;gap:16px;"
-     onclick="this.classList.add('d-none')">
+<div id="qrOverlay" style="
+        display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:1000;
+        align-items:center;justify-content:center;flex-direction:column;gap:16px;"
+     onclick="this.style.display='none'">
     <div style="background:#fff;border-radius:16px;padding:28px 32px;text-align:center;max-width:340px;width:90%;"
          onclick="event.stopPropagation()">
         <div style="font-size:13px;color:#6b7280;margin-bottom:4px;">Teilnehmer-Link</div>
