@@ -108,6 +108,10 @@ echo renderFlash();
                        class="btn btn-sm btn-outline-secondary" title="Bearbeiten">
                         <i class="bi bi-pencil"></i>
                     </a>
+                    <a href="/admin/votes.php?id=<?= $s['id'] ?>"
+                       class="btn btn-sm btn-outline-secondary" title="Abstimmungen verwalten">
+                        <i class="bi bi-list-check"></i>
+                    </a>
                     <button class="btn btn-sm btn-outline-warning" title="Stimmen zurücksetzen"
                             onclick="doAction('reset', <?= $s['id'] ?>, '<?= e(addslashes($s['title'])) ?>')">
                         <i class="bi bi-arrow-counterclockwise"></i>
@@ -169,6 +173,10 @@ echo renderFlash();
                 <td class="text-muted small"><?= fmtDate($s['created_at']) ?></td>
                 <td class="text-end">
                     <div class="btn-group btn-group-sm">
+                        <a href="/admin/votes.php?id=<?= $s['id'] ?>"
+                           class="btn btn-outline-secondary" title="Abstimmungen verwalten">
+                            <i class="bi bi-list-check"></i>
+                        </a>
                         <button class="btn btn-outline-success" title="Wieder öffnen"
                                 onclick="doAction('reopen', <?= $s['id'] ?>, '<?= e(addslashes($s['title'])) ?>')">
                             <i class="bi bi-play-circle"></i>
@@ -196,7 +204,7 @@ echo renderFlash();
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body text-center pt-1">
-                <canvas id="qrCanvas" style="max-width:100%;"></canvas>
+                <img id="qrImg" src="" alt="QR-Code" style="width:220px;height:220px;">
                 <div class="mt-2 text-muted small" id="qrUrl" style="word-break:break-all;font-size:11px;"></div>
             </div>
             <div class="modal-footer border-0 pt-0 justify-content-center">
@@ -247,8 +255,9 @@ function showQr(code) {
     qrCurrentCode = code;
     const url = location.origin + '/join.php?code=' + code;
     document.getElementById('qrUrl').textContent = url;
-    const canvas = document.getElementById('qrCanvas');
-    QRCode.toCanvas(canvas, url, { width: 220, margin: 2 }, () => {});
+    QRCode.toDataURL(url, { width: 220, margin: 2 }, function(err, dataUrl) {
+        if (!err) document.getElementById('qrImg').src = dataUrl;
+    });
     new bootstrap.Modal(document.getElementById('qrModal')).show();
 }
 </script>
