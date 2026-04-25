@@ -406,20 +406,16 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
         const area  = document.getElementById('cloudArea');
         const empty = document.getElementById('cloudEmpty');
 
-        // Preset-Karten aktualisieren (symbols / both)
+        // Preset-Karten: nur Stimmenzahl aktualisieren, Größe bleibt fest
         if (MODE === 'symbols' || MODE === 'both') {
-            const mx = Math.max(...items.map(i => +i.vote_count), 0);
             items.forEach(item => {
-                const card = document.getElementById('p' + item.arasaac_id);
-                if (!card) return;
-                applySize(card, calcSize(item.vote_count, mx));
-                const v = card.querySelector('.sym-votes');
+                const v = document.getElementById('pv' + item.arasaac_id);
                 if (v) v.textContent = +item.vote_count > 0 ? item.vote_count + ' ×' : '';
             });
             PRESETS.forEach(p => {
                 if (!items.some(i => +i.arasaac_id === p.id)) {
-                    const card = document.getElementById('p' + p.id);
-                    if (card) applySize(card, calcSize(0, 1));
+                    const v = document.getElementById('pv' + p.id);
+                    if (v) v.textContent = '';
                 }
             });
         }
