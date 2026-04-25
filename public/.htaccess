@@ -1,13 +1,6 @@
 Options -Indexes
 ServerSignature Off
 
-# PHP-Einstellungen
-php_flag display_errors Off
-php_flag log_errors On
-php_value max_execution_time 30
-php_value memory_limit 64M
-php_value post_max_size 2M
-
 # Sicherheits-Header
 <IfModule mod_headers.c>
     Header always set X-Frame-Options "SAMEORIGIN"
