@@ -99,7 +99,7 @@ $presetsJson = $session
         /* ---- Symbol-Karte (allgemein) ---- */
         .sym-card {
             display: flex; flex-direction: column; align-items: center;
-            padding: 10px 8px; border-radius: 14px; border: 2px solid transparent;
+            padding: 10px 8px; border-radius: 14px; border: 2px solid #e5e7eb;
             background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.07);
             cursor: pointer; user-select: none;
             transition: border-color .2s, box-shadow .2s, transform .15s;
@@ -120,10 +120,12 @@ $presetsJson = $session
         .cloud-area {
             flex: 1 1 auto; overflow-y: auto;
             padding: 20px;
-            display: flex; flex-wrap: wrap;
-            gap: 14px; justify-content: center; align-content: flex-start;
+            position: relative;
+            min-height: 300px;
         }
-        .cloud-empty { text-align: center; color: #9ca3af; width: 100%; padding: 50px 20px; }
+        .cloud-empty { text-align: center; color: #9ca3af;
+                       position: absolute; top: 50%; left: 50%;
+                       transform: translate(-50%,-50%); width: 80%; }
         .cloud-empty i { font-size: 3.5rem; display: block; margin-bottom: 10px; }
 
         /* ---- Status-Footer ---- */
@@ -396,6 +398,9 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
             .catch(() => {});
     }
 
+    /* ---- Positionen persistent (neu platzieren nur bei neuen Karten) ---- */
+    const cloudLayout = new Map();
+
     /* ---- Cloud rendern ---- */
     function renderCloud(items) {
         const area  = document.getElementById('cloudArea');
@@ -409,7 +414,7 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
                 if (!card) return;
                 applySize(card, calcSize(item.vote_count, mx));
                 const v = card.querySelector('.sym-votes');
-                if (v) v.textContent = item.vote_count > 0 ? item.vote_count + ' ×' : '';
+                if (v) v.textContent = +item.vote_count > 0 ? item.vote_count + ' ×' : '';
             });
             PRESETS.forEach(p => {
                 if (!items.some(i => +i.arasaac_id === p.id)) {
@@ -419,46 +424,136 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
             });
         }
 
-        // Wolke rendern (alle Modi)
         if (!items.length) {
             empty.classList.remove('d-none');
             area.querySelectorAll('.sym-card').forEach(c => c.remove());
+            cloudLayout.clear();
+            area.style.height = '';
             return;
         }
         empty.classList.add('d-none');
-        const mx = Math.max(...items.map(i => +i.vote_count), 1);
 
-        items.forEach(item => {
-            const aid  = +item.arasaac_id;
-            const sz   = calcSize(item.vote_count, mx);
-            let   card = document.getElementById('c' + aid);
+        const mx     = Math.max(...items.map(i => +i.vote_count), 1);
+        const sorted = [...items].sort((a, b) => b.vote_count - a.vote_count);
+        const newAids = [];
+
+        sorted.forEach(item => {
+            const aid = +item.arasaac_id;
+            const sz  = calcSize(item.vote_count, mx);
+            let card  = document.getElementById('c' + aid);
 
             if (!card) {
                 card = document.createElement('div');
-                card.className = 'sym-card';
-                card.id        = 'c' + aid;
-                card.dataset.aid = aid;
+                card.className   = 'sym-card';
+                card.id          = 'c' + aid;
+                card.dataset.aid = String(aid);
+                card.style.cssText = 'position:absolute;visibility:hidden;';
                 card.innerHTML = `
                     <img src="${CDN}/${aid}/${aid}_300.png" alt="" loading="lazy"
-                         width="${sz.img}" height="${sz.img}" style="width:${sz.img}px;height:${sz.img}px;">
+                         style="width:${sz.img}px;height:${sz.img}px;object-fit:contain;">
                     <span class="sym-lbl" style="font-size:${sz.font}px;">${esc(item.label)}</span>
                     <span class="sym-votes">${item.vote_count} ×</span>`;
                 card.addEventListener('click', () => toggleVote(aid, item.label));
                 area.appendChild(card);
+                newAids.push(aid);
             } else {
                 applySize(card, sz);
                 const lbl = card.querySelector('.sym-lbl');
                 const vc  = card.querySelector('.sym-votes');
                 if (lbl) lbl.style.fontSize = sz.font + 'px';
                 if (vc)  vc.textContent     = item.vote_count + ' ×';
+                if (cloudLayout.has(aid)) {
+                    const pos = cloudLayout.get(aid);
+                    card.style.left = pos.x + 'px';
+                    card.style.top  = pos.y + 'px';
+                    card.style.visibility = 'visible';
+                }
             }
             card.classList.toggle('voted', myVotes.has(aid));
         });
 
         // Karten ohne Stimme entfernen
         area.querySelectorAll('.sym-card').forEach(card => {
-            if (!items.some(i => +i.arasaac_id === +card.dataset.aid)) card.remove();
+            const aid = +card.dataset.aid;
+            if (!items.some(i => +i.arasaac_id === aid)) {
+                card.remove();
+                cloudLayout.delete(aid);
+            }
         });
+
+        if (newAids.length) requestAnimationFrame(() => placeItems(sorted, newAids));
+    }
+
+    /* ---- Neue Karten spiralförmig platzieren (größte zuerst = Mitte) ---- */
+    function placeItems(sorted, newAids) {
+        const area  = document.getElementById('cloudArea');
+        const areaW = area.clientWidth || 600;
+        const cx    = Math.round(areaW / 2);
+        const cy    = 200;
+        const pad   = 12;
+
+        // Bereits platzierte Karten aufnehmen
+        const placed = [];
+        cloudLayout.forEach((pos, aid) => {
+            const c = document.getElementById('c' + aid);
+            if (c) placed.push({x: pos.x, y: pos.y, w: c.offsetWidth, h: c.offsetHeight});
+        });
+
+        sorted.forEach(item => {
+            const aid  = +item.arasaac_id;
+            if (!newAids.includes(aid)) return;
+
+            const card = document.getElementById('c' + aid);
+            if (!card) return;
+
+            const w  = card.offsetWidth  || 100;
+            const h  = card.offsetHeight || 120;
+            let tx, ty, ok = false;
+
+            if (placed.length === 0) {
+                // Erstes (größtes) Symbol: Mitte
+                tx = cx - Math.round(w / 2);
+                ty = cy - Math.round(h / 2);
+                ok = true;
+            } else {
+                for (let r = 70; r < 1200 && !ok; r += 18) {
+                    const steps = Math.max(8, Math.ceil(2 * Math.PI * r / 55));
+                    for (let s = 0; s < steps && !ok; s++) {
+                        const angle = 2 * Math.PI * s / steps;
+                        tx = cx + Math.round(r * Math.cos(angle)) - Math.round(w / 2);
+                        ty = cy + Math.round(r * Math.sin(angle)) - Math.round(h / 2);
+                        if (!placed.some(p =>
+                            tx < p.x + p.w + pad && tx + w + pad > p.x &&
+                            ty < p.y + p.h + pad && ty + h + pad > p.y
+                        )) ok = true;
+                    }
+                }
+                if (!ok) { tx = cx + placed.length * 10; ty = cy + placed.length * 10; }
+            }
+
+            placed.push({x: tx, y: ty, w, h});
+            cloudLayout.set(aid, {x: tx, y: ty});
+            card.style.left = Math.max(0, tx) + 'px';
+            card.style.top  = Math.max(0, ty) + 'px';
+            card.style.visibility = 'visible';
+        });
+
+        // Bereich anpassen, damit alle Karten sichtbar sind
+        if (placed.length) {
+            const minY = Math.min(...placed.map(p => p.y));
+            const maxY = Math.max(...placed.map(p => p.y + p.h));
+            if (minY < 0) {
+                const shift = -minY + 20;
+                cloudLayout.forEach((pos, aid) => {
+                    pos.y += shift;
+                    const c = document.getElementById('c' + aid);
+                    if (c) c.style.top = pos.y + 'px';
+                });
+                area.style.height = (maxY + shift + 40) + 'px';
+            } else {
+                area.style.height = (maxY + 40) + 'px';
+            }
+        }
     }
 
     function applySize(card, sz) {

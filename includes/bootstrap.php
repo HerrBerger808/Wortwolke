@@ -20,6 +20,10 @@ if (!file_exists($configFile)) {
     }
 } else {
     require_once $configFile;
+    // Auto-migrate: ensure all tables exist (idempotent)
+    if (!isset($_SESSION['schema_ok'])) {
+        try { DB::createSchema(); $_SESSION['schema_ok'] = true; } catch (\Throwable $e) {}
+    }
 }
 
 // Includes

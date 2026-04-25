@@ -59,6 +59,15 @@ class DB
                 UNIQUE KEY uq_vote (session_id, participant_token, arasaac_id),
                 INDEX idx_session (session_id, arasaac_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+            CREATE TABLE IF NOT EXISTS wordcloud_users (
+                id            INT AUTO_INCREMENT PRIMARY KEY,
+                username      VARCHAR(64) NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                is_admin      TINYINT(1) NOT NULL DEFAULT 0,
+                created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uq_username (username)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         ");
     }
 

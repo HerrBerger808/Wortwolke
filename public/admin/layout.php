@@ -24,10 +24,13 @@ function adminHead(string $pageTitle): void
 function adminNav(string $currentPath = ''): void
 {
     $title  = appTitle();
-    $links  = [
-        ['/admin/',         'grid-fill',            'Übersicht'],
-        ['/admin/create.php','plus-circle-fill',    'Neue Sitzung'],
+    $links = [
+        ['/admin/',           'grid-fill',        'Übersicht'],
+        ['/admin/create.php', 'plus-circle-fill', 'Neue Sitzung'],
     ];
+    if (Auth::isAdmin()) {
+        $links[] = ['/admin/users.php', 'people-fill', 'Benutzer'];
+    }
     echo '<nav class="admin-nav navbar navbar-expand-lg navbar-dark bg-indigo">
     <div class="container-fluid px-4">
         <a class="navbar-brand d-flex align-items-center gap-2 fw-bold" href="/admin/">
@@ -51,6 +54,9 @@ function adminNav(string $currentPath = ''): void
                 <a href="/" target="_blank" class="btn btn-sm btn-outline-light">
                     <i class="bi bi-eye me-1"></i>Teilnehmer-Ansicht
                 </a>
+                <span class="text-white-50 small d-none d-lg-inline">
+                    <i class="bi bi-person-circle me-1"></i>' . e(Auth::currentUsername()) . '
+                </span>
                 <a href="/admin/logout.php" class="btn btn-sm btn-light text-danger fw-semibold"
                    onclick="return confirm(\'Wirklich abmelden?\')">
                     <i class="bi bi-box-arrow-right me-1"></i>Abmelden

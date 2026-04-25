@@ -60,10 +60,16 @@ echo renderFlash();
                 <div class="text-center mb-3">
                     <div class="text-muted small mb-1">Teilnehmer-Code</div>
                     <div class="code-display font-monospace"><?= e($s['session_code']) ?></div>
-                    <button class="btn btn-xs btn-outline-secondary mt-1"
-                            onclick="copyCode('<?= e($s['session_code']) ?>')">
-                        <i class="bi bi-clipboard me-1"></i>Kopieren
-                    </button>
+                    <div class="d-flex gap-1 justify-content-center mt-1 flex-wrap">
+                        <button class="btn btn-xs btn-outline-secondary"
+                                onclick="copyLink('<?= e($s['session_code']) ?>', this)">
+                            <i class="bi bi-clipboard me-1"></i>Link kopieren
+                        </button>
+                        <button class="btn btn-xs btn-outline-secondary"
+                                onclick="showQr('<?= e($s['session_code']) ?>')">
+                            <i class="bi bi-qr-code me-1"></i>QR
+                        </button>
+                    </div>
                 </div>
                 <!-- Stats -->
                 <div class="row g-2 text-center mb-3">
@@ -109,6 +115,10 @@ echo renderFlash();
                     <button class="btn btn-sm btn-outline-danger" title="Sitzung schließen"
                             onclick="doAction('close', <?= $s['id'] ?>, '<?= e(addslashes($s['title'])) ?>')">
                         <i class="bi bi-stop-circle"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" title="Löschen"
+                            onclick="doAction('delete', <?= $s['id'] ?>, '<?= e(addslashes($s['title'])) ?>')">
+                        <i class="bi bi-trash"></i>
                     </button>
                 </div>
                 <div class="mt-2 text-muted" style="font-size:11px;">
@@ -177,13 +187,38 @@ echo renderFlash();
 </div>
 <?php endif; ?>
 
+<!-- QR-Code Modal -->
+<div class="modal fade" id="qrModal" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-bold"><i class="bi bi-qr-code me-2"></i>QR-Code</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center pt-1">
+                <canvas id="qrCanvas" style="max-width:100%;"></canvas>
+                <div class="mt-2 text-muted small" id="qrUrl" style="word-break:break-all;font-size:11px;"></div>
+            </div>
+            <div class="modal-footer border-0 pt-0 justify-content-center">
+                <button class="btn btn-sm btn-outline-secondary" onclick="copyLink(qrCurrentCode, this)">
+                    <i class="bi bi-clipboard me-1"></i>Link kopieren
+                </button>
+                <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Schließen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <form id="actionForm" method="POST" action="/admin/action.php" class="d-none">
     <?= Auth::csrfInput() ?>
     <input type="hidden" name="action" id="fAction">
     <input type="hidden" name="id"     id="fId">
 </form>
 
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
 <script>
+let qrCurrentCode = '';
+
 function doAction(action, id, title) {
     const msgs = {
         close:  `Sitzung "${title}" schließen?`,
@@ -197,12 +232,24 @@ function doAction(action, id, title) {
     document.getElementById('actionForm').submit();
 }
 
-function copyCode(code) {
-    navigator.clipboard.writeText(code).then(() => {
-        // kurzes visuelles Feedback
-        event.target.closest('button').innerHTML = '<i class="bi bi-check me-1"></i>Kopiert!';
-        setTimeout(() => location.reload(), 1200);
-    });
+function copyLink(code, btn) {
+    const url = location.origin + '/join.php?code=' + code;
+    navigator.clipboard.writeText(url).then(() => {
+        if (btn) {
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check me-1"></i>Kopiert!';
+            setTimeout(() => { btn.innerHTML = orig; }, 1800);
+        }
+    }).catch(() => { prompt('Link zum Kopieren:', url); });
+}
+
+function showQr(code) {
+    qrCurrentCode = code;
+    const url = location.origin + '/join.php?code=' + code;
+    document.getElementById('qrUrl').textContent = url;
+    const canvas = document.getElementById('qrCanvas');
+    QRCode.toCanvas(canvas, url, { width: 220, margin: 2 }, () => {});
+    new bootstrap.Modal(document.getElementById('qrModal')).show();
 }
 </script>
 

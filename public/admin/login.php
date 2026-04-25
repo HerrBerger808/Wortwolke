@@ -12,13 +12,13 @@ $error    = '';
 $redirect = get('redirect', '/admin/');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
-    if (Auth::login($password)) {
+    if (Auth::login($username, $password)) {
         header('Location: ' . $redirect);
         exit;
     }
-    $error = 'Falsches Passwort.';
-    // Kurze Verzögerung gegen Brute-Force
+    $error = 'Falscher Benutzername oder falsches Passwort.';
     sleep(1);
 }
 
@@ -56,9 +56,15 @@ $title = appTitle();
             <form method="POST">
                 <input type="hidden" name="redirect" value="<?= e($redirect) ?>">
                 <div class="mb-3">
+                    <label class="form-label fw-semibold">Benutzername</label>
+                    <input type="text" name="username" class="form-control form-control-lg"
+                           autofocus autocomplete="username" placeholder="Benutzername"
+                           value="<?= e($_POST['username'] ?? '') ?>">
+                </div>
+                <div class="mb-3">
                     <label class="form-label fw-semibold">Passwort</label>
                     <input type="password" name="password" class="form-control form-control-lg"
-                           autofocus autocomplete="current-password" placeholder="Admin-Passwort">
+                           autocomplete="current-password" placeholder="Passwort">
                 </div>
                 <button type="submit" class="btn btn-primary btn-lg w-100">
                     <i class="bi bi-arrow-right-circle me-2"></i>Anmelden
