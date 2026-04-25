@@ -402,30 +402,25 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
         const area  = document.getElementById('cloudArea');
         const empty = document.getElementById('cloudEmpty');
 
-        if (MODE === 'symbols') {
-            // Nur Preset-Karten aktualisieren – keine separate Wolke nötig
+        // Preset-Karten aktualisieren (symbols / both)
+        if (MODE === 'symbols' || MODE === 'both') {
             const mx = Math.max(...items.map(i => +i.vote_count), 0);
             items.forEach(item => {
-                const aid  = +item.arasaac_id;
-                const card = document.getElementById('p' + aid);
+                const card = document.getElementById('p' + item.arasaac_id);
                 if (!card) return;
-                const sz   = calcSize(item.vote_count, mx);
-                applySize(card, sz);
+                applySize(card, calcSize(item.vote_count, mx));
                 const v = card.querySelector('.sym-votes');
                 if (v) v.textContent = item.vote_count > 0 ? item.vote_count + ' ×' : '';
             });
-            // Karten ohne Stimme auf Standardgröße
             PRESETS.forEach(p => {
                 if (!items.some(i => +i.arasaac_id === p.id)) {
                     const card = document.getElementById('p' + p.id);
                     if (card) applySize(card, calcSize(0, 1));
                 }
             });
-            empty.classList.add('d-none');
-            return;
         }
 
-        // such/both: Wolken-Karten im cloud-area
+        // Wolke rendern (alle Modi)
         if (!items.length) {
             empty.classList.remove('d-none');
             area.querySelectorAll('.sym-card').forEach(c => c.remove());
