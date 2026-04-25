@@ -41,14 +41,18 @@ FLUSH PRIVILEGES;
 `https://ihre-domain.de/install.php` im Browser öffnen und Felder ausfüllen.
 Der Assistent erstellt `config.php` und legt die Datenbanktabellen an.
 
-### 4. Apache-Konfiguration (Beispiel)
+### 4. Apache-Konfiguration
+
+> **Wichtig:** Der DocumentRoot muss auf den Unterordner `public/` zeigen,
+> nicht auf das Repo-Root. So bleiben `includes/` und `config.php` außerhalb
+> der Web-Reichweite.
 
 ```apache
 <VirtualHost *:80>
     ServerName wortwolke.schule.de
-    DocumentRoot /var/www/html/wortwolke
+    DocumentRoot /var/www/html/wortwolke/public
 
-    <Directory /var/www/html/wortwolke>
+    <Directory /var/www/html/wortwolke/public>
         AllowOverride All
         Require all granted
     </Directory>
@@ -78,28 +82,30 @@ Der Assistent erstellt `config.php` und legt die Datenbanktabellen an.
 
 ```
 /
-├── index.php               # Startseite (Code-Eingabe)
-├── join.php                # Teilnehmer-Ansicht
-├── install.php             # Installations-Assistent
-├── config.php              # Konfiguration (gitignore – wird generiert)
+├── config.php              # Konfiguration (gitignore – nicht im Web!)
 ├── config.example.php      # Beispiel-Konfiguration
-├── admin/
-│   ├── login.php           # Admin-Login
-│   ├── index.php           # Sitzungs-Übersicht
-│   ├── create.php          # Neue Sitzung
-│   ├── edit.php            # Sitzung bearbeiten
-│   └── action.php          # Schließen / Öffnen / Löschen / Reset
-├── api/
-│   ├── search.php          # ARASAAC-Suchproxy
-│   ├── vote.php            # Stimme abgeben / zurückziehen
-│   └── data.php            # Live-Daten für Polling
-├── includes/
+├── includes/               # PHP-Klassen (nicht im Web – außerhalb public/)
 │   ├── bootstrap.php       # Initialisierung
 │   ├── db.php              # Datenbank-Klasse
 │   ├── auth.php            # Admin-Authentifizierung
 │   ├── WordCloudManager.php# Geschäftslogik
 │   └── helpers.php         # Hilfsfunktionen
-└── assets/css/style.css    # Styles
+└── public/                 # ← DocumentRoot (nur dieser Ordner ist im Web)
+    ├── .htaccess
+    ├── index.php           # Startseite (Code-Eingabe)
+    ├── join.php            # Teilnehmer-Ansicht
+    ├── install.php         # Installations-Assistent
+    ├── admin/
+    │   ├── login.php       # Admin-Login
+    │   ├── index.php       # Sitzungs-Übersicht
+    │   ├── create.php      # Neue Sitzung
+    │   ├── edit.php        # Sitzung bearbeiten
+    │   └── action.php      # Schließen / Öffnen / Löschen / Reset
+    ├── api/
+    │   ├── search.php      # ARASAAC-Suchproxy
+    │   ├── vote.php        # Stimme abgeben / zurückziehen
+    │   └── data.php        # Live-Daten für Polling
+    └── assets/css/style.css
 ```
 
 ## Lizenz

@@ -1,7 +1,7 @@
 <?php
-define('APP_ROOT', dirname(__DIR__));
+define('APP_ROOT', dirname(__DIR__, 2));
 require_once APP_ROOT . '/includes/bootstrap.php';
-require_once APP_ROOT . '/admin/layout.php';
+require_once __DIR__ . '/layout.php';
 Auth::require();
 
 $mgr      = new WordCloudManager();

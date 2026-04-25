@@ -4,7 +4,7 @@
  * Läuft einmalig um config.php zu erstellen und die Datenbank anzulegen.
  */
 
-define('APP_ROOT', __DIR__);
+define('APP_ROOT', dirname(__DIR__));
 
 // Wenn bereits konfiguriert → zur Admin-Seite
 if (file_exists(APP_ROOT . '/config.php')) {

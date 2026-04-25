@@ -1,5 +1,5 @@
 <?php
-define('APP_ROOT', __DIR__);
+define('APP_ROOT', dirname(__DIR__));
 require_once APP_ROOT . '/includes/bootstrap.php';
 
 $title = appTitle();

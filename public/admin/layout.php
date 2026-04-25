@@ -1,7 +1,7 @@
 <?php
 /**
  * Admin-Layout-Hilfsfunktionen
- * Einbinden mit: require APP_ROOT . '/admin/layout.php';
+ * Einbinden mit: require __DIR__ . '/layout.php';
  */
 
 function adminHead(string $pageTitle): void

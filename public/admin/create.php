@@ -1,7 +1,7 @@
 <?php
-define('APP_ROOT', dirname(__DIR__));
+define('APP_ROOT', dirname(__DIR__, 2));
 require_once APP_ROOT . '/includes/bootstrap.php';
-require_once APP_ROOT . '/admin/layout.php';
+require_once __DIR__ . '/layout.php';
 Auth::require();
 
 $errors  = [];
@@ -69,7 +69,7 @@ adminNav('/admin/create.php');
 
 <form method="POST" id="mainForm">
     <?= Auth::csrfInput() ?>
-    <?php include APP_ROOT . '/admin/_session_form.php'; ?>
+    <?php include __DIR__ . '/_session_form.php'; ?>
     <div class="mt-4 d-flex gap-2">
         <button type="submit" class="btn btn-primary">
             <i class="bi bi-check2 me-2"></i>Sitzung erstellen
@@ -79,6 +79,6 @@ adminNav('/admin/create.php');
 </form>
 
 <?php
-require APP_ROOT . '/admin/_session_form_js.php';
+require __DIR__ . '/_session_form_js.php';
 adminFoot();
 ?>

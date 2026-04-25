@@ -1,5 +1,5 @@
 <?php
-define('APP_ROOT', __DIR__);
+define('APP_ROOT', dirname(__DIR__));
 require_once APP_ROOT . '/includes/bootstrap.php';
 
 $code    = strtoupper(preg_replace('/[^A-Z0-9]/', '', get('code', '')));

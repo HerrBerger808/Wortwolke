@@ -5,7 +5,7 @@
  * Body: { session_id, token, arasaac_id, label }
  * Kein Login erforderlich.
  */
-define('APP_ROOT', dirname(__DIR__));
+define('APP_ROOT', dirname(__DIR__, 2));
 require_once APP_ROOT . '/includes/bootstrap.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

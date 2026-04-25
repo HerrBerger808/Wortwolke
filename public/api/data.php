@@ -4,7 +4,7 @@
  * GET /api/data.php?session_id=123&token=xxxxx
  * Kein Login erforderlich.
  */
-define('APP_ROOT', dirname(__DIR__));
+define('APP_ROOT', dirname(__DIR__, 2));
 require_once APP_ROOT . '/includes/bootstrap.php';
 
 $sessionId = (int)  ($_GET['session_id'] ?? 0);
