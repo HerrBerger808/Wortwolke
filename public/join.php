@@ -259,8 +259,7 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
         <?php foreach ($session['predefined_symbols'] as $sym): ?>
         <?php $aid = (int)$sym['arasaac_id']; ?>
         <div class="sym-card" id="p<?= $aid ?>"
-             data-aid="<?= $aid ?>" data-label="<?= e($sym['label']) ?>"
-             onclick="toggleVote(<?= $aid ?>, <?= json_encode($sym['label']) ?>)">
+             data-aid="<?= $aid ?>" data-label="<?= e($sym['label']) ?>">
             <img src="<?= WordCloudManager::ARASAAC_CDN ?>/<?= $aid ?>/<?= $aid ?>_300.png"
                  width="72" height="72" alt="<?= e($sym['label']) ?>" loading="lazy">
             <span class="sym-lbl" style="font-size:12px;"><?= e($sym['label']) ?></span>
@@ -505,8 +504,14 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
             .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
+    /* ---- Preset-Karten: Click-Handler ---- */
+    document.querySelectorAll('#presetRow .sym-card').forEach(card => {
+        card.addEventListener('click', () => {
+            toggleVote(+card.dataset.aid, card.dataset.label);
+        });
+    });
+
     /* ---- Start ---- */
-    window.toggleVote = toggleVote;
     pollCloud();
     setInterval(pollCloud, POLL_MS);
 })();
