@@ -223,7 +223,7 @@ echo renderFlash();
     <input type="hidden" name="id"     id="fId">
 </form>
 
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <script>
 let qrCurrentCode = '';
 
@@ -255,9 +255,10 @@ function showQr(code) {
     qrCurrentCode = code;
     const url = location.origin + '/join.php?code=' + code;
     document.getElementById('qrUrl').textContent = url;
-    QRCode.toDataURL(url, { width: 220, margin: 2 }, function(err, dataUrl) {
-        if (!err) document.getElementById('qrImg').src = dataUrl;
-    });
+    const qr = qrcode(0, 'M');
+    qr.addData(url);
+    qr.make();
+    document.getElementById('qrImg').src = qr.createDataURL(6, 0);
     new bootstrap.Modal(document.getElementById('qrModal')).show();
 }
 </script>
