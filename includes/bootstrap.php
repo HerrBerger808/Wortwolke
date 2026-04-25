@@ -20,10 +20,6 @@ if (!file_exists($configFile)) {
     }
 } else {
     require_once $configFile;
-    // Auto-migrate: ensure all tables exist (idempotent)
-    if (!isset($_SESSION['schema_ok'])) {
-        try { DB::createSchema(); $_SESSION['schema_ok'] = true; } catch (\Throwable $e) {}
-    }
 }
 
 // Includes
@@ -42,4 +38,9 @@ if (session_status() === PHP_SESSION_NONE) {
         'samesite' => 'Strict',
     ]);
     session_start();
+}
+
+// Auto-migrate: fehlende Tabellen anlegen (idempotent, einmal pro Session)
+if (defined('DB_HOST') && empty($_SESSION['schema_ok'])) {
+    try { DB::createSchema(); $_SESSION['schema_ok'] = true; } catch (\Throwable $e) {}
 }
