@@ -540,7 +540,8 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
             .then(data => {
                 if (data.status === 'closed') { location.reload(); return; }
                 myVotes = new Set((data.my_votes || []).map(Number));
-                renderCloud(data.items || []);
+                lastCloudItems = data.items || [];
+                renderCloud(lastCloudItems);
                 updateVoteUI();
                 updateLive(data.participants || 0);
                 const el = document.getElementById('lastUpdate');
@@ -755,11 +756,6 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 
     /* ---- ARASAAC-Symbolliste im Modal ---- */
     let lastCloudItems = [];
-    const _origRenderCloud = renderCloud;
-    function renderCloud(items) {
-        lastCloudItems = items;
-        _origRenderCloud(items);
-    }
     document.getElementById('arasaacModal')?.addEventListener('click', function(e) {
         if (e.target !== this) return;
     });
