@@ -40,7 +40,20 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Auto-migrate: fehlende Tabellen anlegen (idempotent, einmal pro Session)
-if (defined('DB_HOST') && empty($_SESSION['schema_ok'])) {
-    try { DB::createSchema(); $_SESSION['schema_ok'] = true; } catch (\Throwable $e) {}
+// Auto-migrate: Tabellen anlegen + migrieren (idempotent, einmal pro Schema-Version)
+define('SCHEMA_VERSION', 5);
+if (defined('DB_HOST') && (($_SESSION['schema_v'] ?? 0) < SCHEMA_VERSION)) {
+    try {
+        DB::createSchema();
+        DB::migrateSchema();
+        $_SESSION['schema_v'] = SCHEMA_VERSION;
+    } catch (\Throwable $e) {}
+}
+
+// Abgelaufene Gastsitzungen bereinigen (max. 1× pro Minute)
+if (defined('DB_HOST') && (!isset($_SESSION['guest_cleanup']) || $_SESSION['guest_cleanup'] < time() - 60)) {
+    try {
+        (new WordCloudManager())->cleanupExpiredGuestSessions();
+        $_SESSION['guest_cleanup'] = time();
+    } catch (\Throwable $e) {}
 }
