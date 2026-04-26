@@ -45,6 +45,29 @@
                     </div>
                 </label>
                 <?php endforeach; ?>
+
+                <div class="mt-4">
+                    <label class="form-label fw-semibold">Darstellungsmodus</label>
+                    <?php
+                    $curDm = $session['display_mode'] ?? 'cloud';
+                    $dmOpts = [
+                        'cloud' => ['bi-cloud-fill',     'Wolke',  'Spiralförmig, Größe nach Stimmenzahl'],
+                        'list'  => ['bi-bar-chart-fill', 'Reihe',  'Von groß nach klein nebeneinander'],
+                    ];
+                    foreach ($dmOpts as $val => [$icon, $lbl, $desc]):
+                    ?>
+                    <label class="d-flex align-items-start gap-3 p-2 mb-1 border rounded cursor-pointer mode-opt">
+                        <input type="radio" name="display_mode" value="<?= $val ?>" class="mt-1 flex-shrink-0"
+                               <?= ($curDm === $val) ? 'checked' : '' ?>>
+                        <div>
+                            <div class="fw-semibold small">
+                                <i class="bi <?= $icon ?> text-indigo me-1"></i><?= $lbl ?>
+                            </div>
+                            <small class="text-muted"><?= $desc ?></small>
+                        </div>
+                    </label>
+                    <?php endforeach; ?>
+                </div>
             </div>
         </div>
     </div>

@@ -4,14 +4,18 @@ require_once APP_ROOT . '/includes/bootstrap.php';
 require_once __DIR__ . '/layout.php';
 Auth::require();
 
+$mgr     = new WordCloudManager();
 $errors  = [];
-$session = ['title' => '', 'mode' => 'both', 'predefined_symbols' => []];
+$defDm   = $mgr->getSetting('cloud_display_mode', 'cloud');
+$session = ['title' => '', 'mode' => 'both', 'predefined_symbols' => [], 'display_mode' => $defDm];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     Auth::requireCsrf();
 
-    $session['title'] = post('title');
-    $session['mode']  = post('mode', 'both');
+    $session['title']        = post('title');
+    $session['mode']         = post('mode', 'both');
+    $session['display_mode'] = in_array($_POST['display_mode'] ?? '', ['cloud','list'])
+        ? $_POST['display_mode'] : 'cloud';
     if (!in_array($session['mode'], ['symbols','search','both'])) $session['mode'] = 'both';
 
     $symbols = [];
@@ -40,8 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Im Modus "Nur Symbole" muss mindestens ein Symbol hinzugefuegt werden.';
 
     if (empty($errors)) {
-        $mgr    = new WordCloudManager();
-        $result = $mgr->createSession($session['title'], $session['mode'], $symbols, Auth::currentUserId() ?: null);
+        $result = $mgr->createSession($session['title'], $session['mode'], $symbols, Auth::currentUserId() ?: null, $session['display_mode']);
         setFlash('success', 'Sitzung angelegt. Code: <strong class="font-monospace">'
             . htmlspecialchars($result['code']) . '</strong>');
         header('Location: /admin/');

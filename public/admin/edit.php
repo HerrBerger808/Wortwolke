@@ -28,8 +28,10 @@ $errors = [];
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     Auth::requireCsrf();
 
-    $session['title'] = post('title');
-    $session['mode']  = post('mode', 'both');
+    $session['title']        = post('title');
+    $session['mode']         = post('mode', 'both');
+    $session['display_mode'] = in_array($_POST['display_mode'] ?? '', ['cloud','list'])
+        ? $_POST['display_mode'] : 'cloud';
     if (!in_array($session['mode'], ['symbols','search','both'])) $session['mode'] = 'both';
 
     $symbols = [];
@@ -58,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Im Modus "Nur Symbole" muss mindestens ein Symbol hinzugefuegt werden.';
 
     if (empty($errors)) {
-        $mgr->updateSession($id, $session['title'], $session['mode'], $symbols);
+        $mgr->updateSession($id, $session['title'], $session['mode'], $symbols, $session['display_mode']);
         setFlash('success', 'Sitzung aktualisiert.');
         header('Location: /admin/');
         exit;

@@ -47,14 +47,15 @@ class WordCloudManager
     // Sitzungen
     // =========================================================
 
-    public function createSession(string $title, string $mode, array $symbols, ?int $createdBy = null): array
+    public function createSession(string $title, string $mode, array $symbols, ?int $createdBy = null, string $displayMode = 'cloud'): array
     {
-        $symbols = array_slice($symbols, 0, self::MAX_SYMBOLS);
-        $code    = $this->generateCode();
+        $symbols     = array_slice($symbols, 0, self::MAX_SYMBOLS);
+        $code        = $this->generateCode();
+        $displayMode = in_array($displayMode, ['cloud','list']) ? $displayMode : 'cloud';
 
         $stmt = $this->db->prepare(
-            "INSERT INTO wordcloud_sessions (session_code, title, mode, predefined_symbols, created_by)
-             VALUES (:code, :title, :mode, :sym, :uid)"
+            "INSERT INTO wordcloud_sessions (session_code, title, mode, predefined_symbols, created_by, display_mode)
+             VALUES (:code, :title, :mode, :sym, :uid, :dm)"
         );
         $stmt->execute([
             ':code'  => $code,
@@ -62,6 +63,7 @@ class WordCloudManager
             ':mode'  => $mode,
             ':sym'   => empty($symbols) ? null : json_encode($symbols, JSON_UNESCAPED_UNICODE),
             ':uid'   => $createdBy ?: null,
+            ':dm'    => $displayMode,
         ]);
 
         return ['id' => (int) $this->db->lastInsertId(), 'code' => $code];
@@ -91,22 +93,24 @@ class WordCloudManager
         return ['id' => (int) $this->db->lastInsertId(), 'code' => $code, 'token' => $token];
     }
 
-    public function updateSession(int $id, string $title, string $mode, array $symbols): bool
+    public function updateSession(int $id, string $title, string $mode, array $symbols, string $displayMode = 'cloud'): bool
     {
         // Vorherige Custom-Images merken, um Waisen zu löschen
         $old       = $this->getSession($id);
         $oldImages = $old ? $this->extractCustomImageUrls($old['predefined_symbols']) : [];
 
-        $symbols = array_slice($symbols, 0, self::MAX_SYMBOLS);
-        $stmt    = $this->db->prepare(
+        $symbols     = array_slice($symbols, 0, self::MAX_SYMBOLS);
+        $displayMode = in_array($displayMode, ['cloud','list']) ? $displayMode : 'cloud';
+        $stmt        = $this->db->prepare(
             "UPDATE wordcloud_sessions
-             SET title = :title, mode = :mode, predefined_symbols = :sym
+             SET title = :title, mode = :mode, predefined_symbols = :sym, display_mode = :dm
              WHERE id = :id"
         );
         $result = $stmt->execute([
             ':title' => $title,
             ':mode'  => $mode,
             ':sym'   => empty($symbols) ? null : json_encode($symbols, JSON_UNESCAPED_UNICODE),
+            ':dm'    => $displayMode,
             ':id'    => $id,
         ]);
 

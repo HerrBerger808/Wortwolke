@@ -13,7 +13,7 @@ $isActive = $session           && $session['status'] === 'active';
 
 $displayMode = 'cloud';
 if ($session) {
-    $dm = $mgr->getSetting('cloud_display_mode', 'cloud');
+    $dm = $session['display_mode'] ?? 'cloud';
     $displayMode = in_array($dm, ['cloud', 'list']) ? $dm : 'cloud';
 }
 

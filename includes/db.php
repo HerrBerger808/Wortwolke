@@ -113,6 +113,10 @@ class DB
                 ADD COLUMN expires_at DATETIME DEFAULT NULL,
                 ADD INDEX idx_expires (expires_at)");
         }
+        if (!in_array('display_mode', $cols)) {
+            $pdo->exec("ALTER TABLE wordcloud_sessions
+                ADD COLUMN display_mode ENUM('cloud','list') NOT NULL DEFAULT 'cloud'");
+        }
 
         $pdo->exec("CREATE TABLE IF NOT EXISTS wordcloud_settings (
             setting_key   VARCHAR(64) PRIMARY KEY,
