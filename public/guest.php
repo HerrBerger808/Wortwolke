@@ -2,10 +2,11 @@
 define('APP_ROOT', dirname(__DIR__));
 require_once APP_ROOT . '/includes/bootstrap.php';
 
-$mgr          = new WordCloudManager();
-$guestEnabled = $mgr->getSetting('guest_sessions_enabled', '0') === '1';
-$guestHours   = max(1, (int) $mgr->getSetting('guest_session_hours', '24'));
-$appTitle     = appTitle();
+$mgr            = new WordCloudManager();
+$guestEnabled   = $mgr->getSetting('guest_sessions_enabled', '0') === '1';
+$guestHours     = max(1, (int) $mgr->getSetting('guest_session_hours', '24'));
+$guestMaxActive = max(0, (int) $mgr->getSetting('guest_max_active', '0'));
+$appTitle       = appTitle();
 
 $errors  = [];
 $created = null;
@@ -37,6 +38,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $guestEnabled) {
         if ($title === '') $errors[] = 'Bitte einen Titel eingeben.';
         if ($mode === 'symbols' && empty($symbols))
             $errors[] = 'Im Modus „Nur Symbole" muss mindestens ein Symbol hinzugefügt werden.';
+
+        if (empty($errors) && $guestMaxActive > 0) {
+            if ($mgr->countActiveGuestSessions() >= $guestMaxActive) {
+                $errors[] = 'Derzeit sind keine weiteren Gastsitzungen möglich (Maximum von '
+                    . $guestMaxActive . ' aktiven Sitzungen erreicht). Bitte später versuchen.';
+            }
+        }
 
         if (empty($errors)) {
             $result  = $mgr->createGuestSession($title, $mode, $symbols, $guestHours);

@@ -25,13 +25,13 @@ function adminNav(string $currentPath = ''): void
 {
     $title  = appTitle();
     $links = [
-        ['/admin/',             'grid-fill',        'Übersicht'],
-        ['/admin/create.php',  'plus-circle-fill', 'Neue Sitzung'],
-        ['/admin/guests.php',  'person-plus-fill', 'Gastsitzungen'],
+        ['/admin/',            'grid-fill',        'Übersicht'],
+        ['/admin/create.php', 'plus-circle-fill', 'Neue Sitzung'],
     ];
     if (Auth::isAdmin()) {
-        $links[] = ['/admin/users.php',    'people-fill', 'Benutzer'];
-        $links[] = ['/admin/settings.php', 'gear-fill',   'Einstellungen'];
+        $links[] = ['/admin/guests.php',   'person-plus-fill', 'Gastsitzungen'];
+        $links[] = ['/admin/users.php',    'people-fill',      'Benutzer'];
+        $links[] = ['/admin/settings.php', 'gear-fill',        'Einstellungen'];
     }
     echo '<nav class="admin-nav navbar navbar-expand-lg navbar-dark bg-indigo">
     <div class="container-fluid px-4">

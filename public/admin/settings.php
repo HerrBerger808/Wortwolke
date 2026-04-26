@@ -10,20 +10,23 @@ $saved = false;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     Auth::requireCsrf();
 
-    $guestEnabled = isset($_POST['guest_enabled']) ? '1' : '0';
-    $days         = max(0, min(90, (int) ($_POST['guest_days']  ?? 1)));
-    $hours        = max(0, min(23, (int) ($_POST['guest_hours'] ?? 0)));
-    $totalHours   = max(1, $days * 24 + $hours);
+    $guestEnabled  = isset($_POST['guest_enabled']) ? '1' : '0';
+    $days          = max(0, min(90, (int) ($_POST['guest_days']  ?? 1)));
+    $hours         = max(0, min(23, (int) ($_POST['guest_hours'] ?? 0)));
+    $totalHours    = max(1, $days * 24 + $hours);
+    $guestMaxActive = max(0, (int) ($_POST['guest_max_active'] ?? 0));
 
     $mgr->setSetting('guest_sessions_enabled', $guestEnabled);
     $mgr->setSetting('guest_session_hours',    (string) $totalHours);
+    $mgr->setSetting('guest_max_active',       (string) $guestMaxActive);
     $saved = true;
 }
 
-$guestEnabled = $mgr->getSetting('guest_sessions_enabled', '0') === '1';
-$totalHours   = max(1, (int) $mgr->getSetting('guest_session_hours', '24'));
-$currentDays  = intdiv($totalHours, 24);
-$currentHours = $totalHours % 24;
+$guestEnabled   = $mgr->getSetting('guest_sessions_enabled', '0') === '1';
+$totalHours     = max(1, (int) $mgr->getSetting('guest_session_hours', '24'));
+$currentDays    = intdiv($totalHours, 24);
+$currentHours   = $totalHours % 24;
+$guestMaxActive = max(0, (int) $mgr->getSetting('guest_max_active', '0'));
 
 adminHead('Einstellungen');
 adminNav('/admin/settings.php');
@@ -85,6 +88,19 @@ echo renderFlash();
                     <?= $currentDays > 0 ? $currentDays . ' Tag' . ($currentDays != 1 ? 'e' : '') . ' ' : '' ?>
                     <?= $currentHours > 0 ? $currentHours . ' Stunde' . ($currentHours != 1 ? 'n' : '') : '' ?>
                     = <?= $totalHours ?> Stunde<?= $totalHours != 1 ? 'n' : '' ?> gesamt (max. 90 Tage)
+                </div>
+
+                <div class="mt-3">
+                    <label class="form-label fw-semibold" for="guestMaxActive">
+                        Max. gleichzeitige aktive Gastsitzungen
+                    </label>
+                    <div class="input-group" style="max-width:200px;">
+                        <input type="number" name="guest_max_active" id="guestMaxActive"
+                               class="form-control" min="0" max="9999"
+                               value="<?= $guestMaxActive ?>">
+                        <span class="input-group-text">Stück</span>
+                    </div>
+                    <div class="text-muted small mt-1">0 = unbegrenzt</div>
                 </div>
 
                 <hr class="my-3">

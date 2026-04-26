@@ -94,6 +94,11 @@ class DB
         $pdo  = self::get();
         $cols = array_column($pdo->query("DESCRIBE wordcloud_sessions")->fetchAll(), 'Field');
 
+        if (!in_array('created_by', $cols)) {
+            $pdo->exec("ALTER TABLE wordcloud_sessions
+                ADD COLUMN created_by INT DEFAULT NULL,
+                ADD INDEX idx_created_by (created_by)");
+        }
         if (!in_array('is_guest', $cols)) {
             $pdo->exec("ALTER TABLE wordcloud_sessions
                 ADD COLUMN is_guest TINYINT(1) NOT NULL DEFAULT 0");

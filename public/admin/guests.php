@@ -2,7 +2,7 @@
 define('APP_ROOT', dirname(__DIR__, 2));
 require_once APP_ROOT . '/includes/bootstrap.php';
 require_once __DIR__ . '/layout.php';
-Auth::require();
+Auth::requireAdmin();
 
 $mgr      = new WordCloudManager();
 $sessions = $mgr->getSessions(null, true);   // nur Gastsitzungen

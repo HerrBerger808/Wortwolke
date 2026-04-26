@@ -47,20 +47,21 @@ class WordCloudManager
     // Sitzungen
     // =========================================================
 
-    public function createSession(string $title, string $mode, array $symbols): array
+    public function createSession(string $title, string $mode, array $symbols, ?int $createdBy = null): array
     {
         $symbols = array_slice($symbols, 0, self::MAX_SYMBOLS);
         $code    = $this->generateCode();
 
         $stmt = $this->db->prepare(
-            "INSERT INTO wordcloud_sessions (session_code, title, mode, predefined_symbols)
-             VALUES (:code, :title, :mode, :sym)"
+            "INSERT INTO wordcloud_sessions (session_code, title, mode, predefined_symbols, created_by)
+             VALUES (:code, :title, :mode, :sym, :uid)"
         );
         $stmt->execute([
             ':code'  => $code,
             ':title' => $title,
             ':mode'  => $mode,
             ':sym'   => empty($symbols) ? null : json_encode($symbols, JSON_UNESCAPED_UNICODE),
+            ':uid'   => $createdBy ?: null,
         ]);
 
         return ['id' => (int) $this->db->lastInsertId(), 'code' => $code];
@@ -121,21 +122,26 @@ class WordCloudManager
     }
 
     /**
-     * @param string|null $status   null = alle, 'active', 'closed'
-     * @param bool|null   $isGuest  null = alle, true = nur Gast, false = nur Normal
+     * @param string|null $status    null = alle, 'active', 'closed'
+     * @param bool|null   $isGuest   null = alle, true = nur Gast, false = nur Normal
+     * @param int|null    $ownerId   null = alle, sonst nur Sitzungen dieses Benutzers
      */
-    public function getSessions(?string $status = null, ?bool $isGuest = null): array
+    public function getSessions(?string $status = null, ?bool $isGuest = null, ?int $ownerId = null): array
     {
         $conditions = [];
         $params     = [];
 
         if ($status !== null) {
-            $conditions[]       = 's.status = :status';
-            $params[':status']  = $status;
+            $conditions[]        = 's.status = :status';
+            $params[':status']   = $status;
         }
         if ($isGuest !== null) {
-            $conditions[]       = 's.is_guest = :is_guest';
+            $conditions[]        = 's.is_guest = :is_guest';
             $params[':is_guest'] = $isGuest ? 1 : 0;
+        }
+        if ($ownerId !== null) {
+            $conditions[]        = 's.created_by = :owner';
+            $params[':owner']    = $ownerId;
         }
 
         $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
@@ -156,6 +162,17 @@ class WordCloudManager
             $row['predefined_symbols'] = $this->decodeSymbols($row['predefined_symbols']);
         }
         return $rows;
+    }
+
+    public function countActiveGuestSessions(): int
+    {
+        try {
+            return (int) $this->db->query(
+                "SELECT COUNT(*) FROM wordcloud_sessions WHERE is_guest = 1 AND status = 'active'"
+            )->fetchColumn();
+        } catch (\Throwable $e) {
+            return 0;
+        }
     }
 
     public function getSession(int $id): ?array

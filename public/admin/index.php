@@ -4,11 +4,27 @@ require_once APP_ROOT . '/includes/bootstrap.php';
 require_once __DIR__ . '/layout.php';
 Auth::require();
 
-$mgr      = new WordCloudManager();
-$sessions = $mgr->getSessions(null, false);   // nur normale Sitzungen (kein Gast)
-$active   = array_filter($sessions, fn($s) => $s['status'] === 'active');
-$closed   = array_filter($sessions, fn($s) => $s['status'] === 'closed');
-$guestCount = count($mgr->getSessions(null, true));
+$mgr     = new WordCloudManager();
+$pdo     = DB::get();
+$isAdmin = Auth::isAdmin();
+
+// Benutzerfilter: Admin kann ?user_id=X übergeben, normaler Nutzer sieht nur eigene
+$filterUserId = null;
+$filterUser   = null;
+if ($isAdmin && isset($_GET['user_id'])) {
+    $filterUserId = (int) $_GET['user_id'];
+    $row = $pdo->prepare("SELECT id, username FROM wordcloud_users WHERE id = :id");
+    $row->execute([':id' => $filterUserId]);
+    $filterUser = $row->fetch() ?: null;
+    if (!$filterUser) $filterUserId = null;
+} elseif (!$isAdmin) {
+    $filterUserId = Auth::currentUserId() ?: null;
+}
+
+$sessions   = $mgr->getSessions(null, false, $filterUserId);
+$active     = array_filter($sessions, fn($s) => $s['status'] === 'active');
+$closed     = array_filter($sessions, fn($s) => $s['status'] === 'closed');
+$guestCount = $isAdmin ? count($mgr->getSessions(null, true)) : 0;
 
 adminHead('Übersicht');
 adminNav('/admin/');

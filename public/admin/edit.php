@@ -14,6 +14,15 @@ if (!$session) {
     exit;
 }
 
+// Lehrer dürfen nur eigene, nicht-Gast-Sitzungen bearbeiten
+if (!Auth::isAdmin()) {
+    if (!empty($session['is_guest']) || (int)($session['created_by'] ?? 0) !== Auth::currentUserId()) {
+        setFlash('danger', 'Keine Berechtigung.');
+        header('Location: /admin/');
+        exit;
+    }
+}
+
 $errors = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

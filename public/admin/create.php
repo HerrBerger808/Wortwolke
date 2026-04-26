@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($errors)) {
         $mgr    = new WordCloudManager();
-        $result = $mgr->createSession($session['title'], $session['mode'], $symbols);
+        $result = $mgr->createSession($session['title'], $session['mode'], $symbols, Auth::currentUserId() ?: null);
         setFlash('success', 'Sitzung angelegt. Code: <strong class="font-monospace">'
             . htmlspecialchars($result['code']) . '</strong>');
         header('Location: /admin/');
