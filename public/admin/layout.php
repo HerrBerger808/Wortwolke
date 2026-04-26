@@ -25,8 +25,9 @@ function adminNav(string $currentPath = ''): void
 {
     $title  = appTitle();
     $links = [
-        ['/admin/',              'grid-fill',        'Übersicht'],
-        ['/admin/create.php',   'plus-circle-fill', 'Neue Sitzung'],
+        ['/admin/',             'grid-fill',        'Übersicht'],
+        ['/admin/create.php',  'plus-circle-fill', 'Neue Sitzung'],
+        ['/admin/guests.php',  'person-plus-fill', 'Gastsitzungen'],
     ];
     if (Auth::isAdmin()) {
         $links[] = ['/admin/users.php',    'people-fill', 'Benutzer'];

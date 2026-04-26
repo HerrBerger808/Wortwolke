@@ -120,9 +120,25 @@ class WordCloudManager
         return $result;
     }
 
-    public function getSessions(?string $status = null): array
+    /**
+     * @param string|null $status   null = alle, 'active', 'closed'
+     * @param bool|null   $isGuest  null = alle, true = nur Gast, false = nur Normal
+     */
+    public function getSessions(?string $status = null, ?bool $isGuest = null): array
     {
-        $where = $status ? "WHERE s.status = :status" : "";
+        $conditions = [];
+        $params     = [];
+
+        if ($status !== null) {
+            $conditions[]       = 's.status = :status';
+            $params[':status']  = $status;
+        }
+        if ($isGuest !== null) {
+            $conditions[]       = 's.is_guest = :is_guest';
+            $params[':is_guest'] = $isGuest ? 1 : 0;
+        }
+
+        $where = $conditions ? 'WHERE ' . implode(' AND ', $conditions) : '';
         $sql   = "SELECT s.*,
                          COUNT(DISTINCT v.participant_token) AS participant_count,
                          COUNT(v.id)                         AS total_votes
@@ -131,10 +147,9 @@ class WordCloudManager
                   $where
                   GROUP BY s.id
                   ORDER BY s.created_at DESC";
-        $stmt = $status
-            ? $this->db->prepare($sql)
-            : $this->db->query($sql);
-        if ($status) $stmt->execute([':status' => $status]);
+
+        $stmt = $params ? $this->db->prepare($sql) : $this->db->query($sql);
+        if ($params) $stmt->execute($params);
 
         $rows = $stmt->fetchAll();
         foreach ($rows as &$row) {

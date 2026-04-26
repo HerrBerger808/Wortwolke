@@ -2,7 +2,9 @@
 define('APP_ROOT', dirname(__DIR__));
 require_once APP_ROOT . '/includes/bootstrap.php';
 
-$title = appTitle();
+$title        = appTitle();
+$mgr          = new WordCloudManager();
+$guestEnabled = $mgr->getSetting('guest_sessions_enabled', '0') === '1';
 ?>
 <!DOCTYPE html>
 <html lang="de">
@@ -96,7 +98,16 @@ $title = appTitle();
         </button>
     </form>
 
-    <div class="admin-link mt-4">
+    <?php if ($guestEnabled): ?>
+    <div class="mt-4 pt-3 border-top">
+        <a href="/guest.php" class="btn btn-outline-secondary w-100"
+           style="border-radius:14px;">
+            <i class="bi bi-person-plus me-2"></i>Eigene Wortwolke erstellen (Gast)
+        </a>
+    </div>
+    <?php endif; ?>
+
+    <div class="admin-link mt-3">
         <a href="/admin/"><i class="bi bi-lock me-1"></i>Admin-Bereich</a>
     </div>
 </div>

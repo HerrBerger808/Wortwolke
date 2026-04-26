@@ -5,9 +5,10 @@ require_once __DIR__ . '/layout.php';
 Auth::require();
 
 $mgr      = new WordCloudManager();
-$sessions = $mgr->getSessions();
+$sessions = $mgr->getSessions(null, false);   // nur normale Sitzungen (kein Gast)
 $active   = array_filter($sessions, fn($s) => $s['status'] === 'active');
 $closed   = array_filter($sessions, fn($s) => $s['status'] === 'closed');
+$guestCount = count($mgr->getSessions(null, true));
 
 adminHead('Übersicht');
 adminNav('/admin/');
@@ -35,6 +36,16 @@ echo renderFlash();
     <strong>/join.php?code=XXXXXX</strong>
 </div>
 
+<?php if ($guestCount > 0): ?>
+<div class="alert alert-warning border-0 py-2 mb-4 d-flex align-items-center gap-2">
+    <i class="bi bi-person-plus-fill"></i>
+    <span>
+        <strong><?= $guestCount ?></strong> aktive Gastsitzung<?= $guestCount != 1 ? 'en' : '' ?> vorhanden.
+        <a href="/admin/guests.php" class="alert-link ms-1">Gastsitzungen anzeigen →</a>
+    </span>
+</div>
+<?php endif; ?>
+
 <?php if (empty($sessions)): ?>
 <div class="card border-0 shadow-sm">
     <div class="card-body text-center py-5">
@@ -58,12 +69,7 @@ echo renderFlash();
         <div class="card border-0 shadow-sm h-100 session-card">
             <div class="card-header d-flex align-items-center justify-content-between py-2 bg-white border-bottom">
                 <span class="fw-semibold text-truncate"><?= e($s['title']) ?></span>
-                <div class="d-flex gap-1 flex-shrink-0">
-                    <?php if (!empty($s['is_guest'])): ?>
-                    <span class="badge bg-warning text-dark">Gast</span>
-                    <?php endif; ?>
-                    <span class="badge bg-success">Aktiv</span>
-                </div>
+                <span class="badge bg-success ms-2 flex-shrink-0">Aktiv</span>
             </div>
             <div class="card-body pb-2">
                 <!-- Code -->
@@ -167,12 +173,7 @@ echo renderFlash();
             <tbody>
             <?php foreach ($closed as $s): ?>
             <tr>
-                <td class="fw-semibold">
-                    <?= e($s['title']) ?>
-                    <?php if (!empty($s['is_guest'])): ?>
-                    <span class="badge bg-warning text-dark ms-1">Gast</span>
-                    <?php endif; ?>
-                </td>
+                <td class="fw-semibold"><?= e($s['title']) ?></td>
                 <td><code class="text-muted"><?= e($s['session_code']) ?></code></td>
                 <td>
                     <?php
