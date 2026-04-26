@@ -40,12 +40,13 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Auto-migrate: Tabellen anlegen + migrieren (idempotent, einmal pro Session)
-if (defined('DB_HOST') && empty($_SESSION['schema_ok'])) {
+// Auto-migrate: Tabellen anlegen + migrieren (idempotent, einmal pro Schema-Version)
+define('SCHEMA_VERSION', 5);
+if (defined('DB_HOST') && (($_SESSION['schema_v'] ?? 0) < SCHEMA_VERSION)) {
     try {
         DB::createSchema();
         DB::migrateSchema();
-        $_SESSION['schema_ok'] = true;
+        $_SESSION['schema_v'] = SCHEMA_VERSION;
     } catch (\Throwable $e) {}
 }
 
