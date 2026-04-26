@@ -11,12 +11,13 @@ $mode     = $session['mode']   ?? '';
 $isClosed = $session           && $session['status'] === 'closed';
 $isActive = $session           && $session['status'] === 'active';
 
-// Presets als JSON für JS
+// Presets als JSON für JS (image_url für eigene Bilder mitgeben)
 $presetsJson = $session
     ? json_encode(
         array_map(fn($s) => [
-            'id'    => (int) $s['arasaac_id'],
-            'label' => $s['label'],
+            'id'        => (int) $s['arasaac_id'],
+            'label'     => $s['label'],
+            'image_url' => $s['image_url'] ?? null,
         ], $session['predefined_symbols'] ?? []),
         JSON_UNESCAPED_UNICODE
     )
@@ -186,10 +187,12 @@ fetch('/api/data.php?session_id=<?= (int)$session['id'] ?>')
         if (!data.items?.length) { c.innerHTML = '<p class="text-muted">Keine Stimmen vorhanden.</p>'; return; }
         const mx = Math.max(...data.items.map(i => +i.vote_count), 1);
         data.items.forEach(item => {
-            const sz = calcSize(item.vote_count, mx);
-            const d  = document.createElement('div');
+            const sz     = calcSize(item.vote_count, mx);
+            const imgSrc = item.image_url
+                || `https://static.arasaac.org/pictograms/${item.arasaac_id}/${item.arasaac_id}_300.png`;
+            const d = document.createElement('div');
             d.style.cssText = 'display:flex;flex-direction:column;align-items:center;padding:8px;';
-            d.innerHTML = `<img src="https://static.arasaac.org/pictograms/${item.arasaac_id}/${item.arasaac_id}_300.png"
+            d.innerHTML = `<img src="${imgSrc}"
                 style="width:${sz.img}px;height:${sz.img}px;object-fit:contain;" alt="">
                 <span style="font-size:${sz.font}px;color:#374151;margin-top:4px;">${esc(item.label)}</span>
                 <span style="font-size:10px;color:#9ca3af;">${item.vote_count} ×</span>`;
@@ -291,10 +294,15 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
     </div>
     <div class="preset-row" id="presetRow">
         <?php foreach ($session['predefined_symbols'] as $sym): ?>
-        <?php $aid = (int)$sym['arasaac_id']; ?>
+        <?php
+            $aid    = (int)$sym['arasaac_id'];
+            $imgUrl = !empty($sym['image_url'])
+                ? $sym['image_url']
+                : WordCloudManager::ARASAAC_CDN . '/' . $aid . '/' . $aid . '_300.png';
+        ?>
         <div class="sym-card" id="p<?= $aid ?>"
              data-aid="<?= $aid ?>" data-label="<?= e($sym['label']) ?>">
-            <img src="<?= WordCloudManager::ARASAAC_CDN ?>/<?= $aid ?>/<?= $aid ?>_300.png"
+            <img src="<?= e($imgUrl) ?>"
                  width="72" height="72" alt="<?= e($sym['label']) ?>" loading="lazy">
             <span class="sym-lbl" style="font-size:12px;"><?= e($sym['label']) ?></span>
             <span class="sym-votes" id="pv<?= $aid ?>"></span>
@@ -334,6 +342,13 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
     const CDN        = 'https://static.arasaac.org/pictograms';
     const PRESETS    = <?= $presetsJson ?>;
     const POLL_MS    = <?= defined('POLL_MS') ? (int)POLL_MS : 3000 ?>;
+
+    // Mapping eigener Bild-IDs (negativ) → URL
+    const imageUrlMap = {};
+    PRESETS.forEach(p => { if (p.image_url) imageUrlMap[p.id] = p.image_url; });
+    function getImageUrl(aid) {
+        return imageUrlMap[aid] || `${CDN}/${aid}/${aid}_300.png`;
+    }
 
     /* ---- Teilnehmer-Token ---- */
     let token = localStorage.getItem('wc_token_' + SESSION_ID);
@@ -477,7 +492,7 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
                 card.dataset.aid = String(aid);
                 card.style.cssText = 'position:absolute;visibility:hidden;';
                 card.innerHTML = `
-                    <img src="${CDN}/${aid}/${aid}_300.png" alt="" loading="lazy"
+                    <img src="${getImageUrl(aid)}" alt="" loading="lazy"
                          style="width:${sz.img}px;height:${sz.img}px;object-fit:contain;">
                     <span class="sym-lbl" style="font-size:${sz.font}px;">${esc(item.label)}</span>
                     <span class="sym-votes">${item.vote_count} ×</span>`;
