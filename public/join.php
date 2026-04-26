@@ -119,14 +119,16 @@ $presetsJson = $session
 
         /* ---- Wolken-Bereich ---- */
         .cloud-area {
-            flex: 1 1 auto; overflow-y: auto;
-            padding: 20px;
+            flex: 1 1 auto; overflow: hidden;
             position: relative;
-            min-height: 300px;
+        }
+        #cloudCanvas {
+            position: absolute; left: 0; top: 0;
+            transform-origin: 0 0;
         }
         .cloud-empty { text-align: center; color: #9ca3af;
                        position: absolute; top: 50%; left: 50%;
-                       transform: translate(-50%,-50%); width: 80%; }
+                       transform: translate(-50%,-50%); width: 80%; pointer-events: none; }
         .cloud-empty i { font-size: 3.5rem; display: block; margin-bottom: 10px; }
 
         /* ---- Status-Footer ---- */
@@ -389,6 +391,7 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
             } ?>
         </p>
     </div>
+    <div id="cloudCanvas"></div>
 </div>
 
 <!-- Statuszeile -->
@@ -396,6 +399,20 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
     <span id="myVotesInfo">Noch keine Stimme abgegeben.</span>
     <div class="d-flex align-items-center gap-3 flex-wrap">
         <span id="lastUpdate" class="text-muted"></span>
+        <div class="btn-group">
+            <button id="zoomOutBtn" class="btn btn-xs btn-outline-secondary py-0 px-2"
+                    style="font-size:11px;" title="Verkleinern">
+                <i class="bi bi-zoom-out"></i>
+            </button>
+            <button id="zoomFitBtn" class="btn btn-xs btn-outline-secondary py-0 px-2"
+                    style="font-size:11px;" title="Einpassen">
+                <i class="bi bi-fullscreen"></i>
+            </button>
+            <button id="zoomInBtn" class="btn btn-xs btn-outline-secondary py-0 px-2"
+                    style="font-size:11px;" title="Vergrößern">
+                <i class="bi bi-zoom-in"></i>
+            </button>
+        </div>
         <button id="exportPngBtn" class="btn btn-xs btn-outline-secondary py-0 px-2"
                 style="font-size:11px;" title="Wolke als PNG speichern">
             <i class="bi bi-download me-1"></i>PNG
@@ -446,6 +463,37 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
     const CDN        = 'https://static.arasaac.org/pictograms';
     const PRESETS    = <?= $presetsJson ?>;
     const POLL_MS    = <?= defined('POLL_MS') ? (int)POLL_MS : 3000 ?>;
+
+    let currentZoom = 1.0;
+
+    function autoFit() {
+        if (!cloudLayout.size) return;
+        const area   = document.getElementById('cloudArea');
+        const canvas = document.getElementById('cloudCanvas');
+        if (!canvas) return;
+        const areaW = area.clientWidth  || 600;
+        const areaH = area.clientHeight || 400;
+
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        cloudLayout.forEach((pos, aid) => {
+            const c = document.getElementById('c' + aid);
+            if (!c) return;
+            minX = Math.min(minX, pos.x);
+            minY = Math.min(minY, pos.y);
+            maxX = Math.max(maxX, pos.x + (c.offsetWidth  || 100));
+            maxY = Math.max(maxY, pos.y + (c.offsetHeight || 120));
+        });
+        if (!isFinite(minX)) return;
+
+        const PAD   = 16;
+        const cntW  = (maxX - minX) + 2 * PAD;
+        const cntH  = (maxY - minY) + 2 * PAD;
+        const base  = Math.min(areaW / cntW, areaH / cntH);
+        const scale = Math.max(0.15, Math.min(base * currentZoom, 4));
+        const tx    = Math.round(areaW / 2 - (maxX + minX) / 2 * scale);
+        const ty    = Math.round(areaH / 2 - (maxY + minY) / 2 * scale);
+        canvas.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+    }
 
     // Mapping eigener Bild-IDs (negativ) → URL
     const imageUrlMap = {};
@@ -555,8 +603,9 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 
     /* ---- Cloud rendern ---- */
     function renderCloud(items) {
-        const area  = document.getElementById('cloudArea');
-        const empty = document.getElementById('cloudEmpty');
+        const area   = document.getElementById('cloudArea');
+        const canvas = document.getElementById('cloudCanvas');
+        const empty  = document.getElementById('cloudEmpty');
 
         // Preset-Karten: nur Stimmenzahl aktualisieren, Größe bleibt fest
         if (MODE === 'symbols' || MODE === 'both') {
@@ -574,9 +623,9 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 
         if (!items.length) {
             empty.classList.remove('d-none');
-            area.querySelectorAll('.sym-card').forEach(c => c.remove());
+            canvas.querySelectorAll('.sym-card').forEach(c => c.remove());
             cloudLayout.clear();
-            area.style.height = '';
+            canvas.style.transform = '';
             return;
         }
         empty.classList.add('d-none');
@@ -602,7 +651,7 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
                     <span class="sym-lbl" style="font-size:${sz.font}px;">${esc(item.label)}</span>
                     <span class="sym-votes">${item.vote_count} ×</span>`;
                 card.addEventListener('click', () => toggleVote(aid, item.label));
-                area.appendChild(card);
+                canvas.appendChild(card);
                 newAids.push(aid);
             } else {
                 applySize(card, sz);
@@ -621,7 +670,7 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
         });
 
         // Karten ohne Stimme entfernen
-        area.querySelectorAll('.sym-card').forEach(card => {
+        canvas.querySelectorAll('.sym-card').forEach(card => {
             const aid = +card.dataset.aid;
             if (!items.some(i => +i.arasaac_id === aid)) {
                 card.remove();
@@ -635,9 +684,10 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
     /* ---- Neue Karten spiralförmig platzieren (größte zuerst = Mitte) ---- */
     function placeItems(sorted, newAids) {
         const area  = document.getElementById('cloudArea');
-        const areaW = area.clientWidth || 600;
+        const areaW = area.clientWidth  || 600;
+        const areaH = area.clientHeight || 400;
         const cx    = Math.round(areaW / 2);
-        const cy    = 200;
+        const cy    = Math.round(areaH / 2);
         const pad   = 12;
 
         // Bereits platzierte Karten aufnehmen
@@ -686,22 +736,7 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
             card.style.visibility = 'visible';
         });
 
-        // Bereich anpassen, damit alle Karten sichtbar sind
-        if (placed.length) {
-            const minY = Math.min(...placed.map(p => p.y));
-            const maxY = Math.max(...placed.map(p => p.y + p.h));
-            if (minY < 0) {
-                const shift = -minY + 20;
-                cloudLayout.forEach((pos, aid) => {
-                    pos.y += shift;
-                    const c = document.getElementById('c' + aid);
-                    if (c) c.style.top = pos.y + 'px';
-                });
-                area.style.height = (maxY + shift + 40) + 'px';
-            } else {
-                area.style.height = (maxY + 40) + 'px';
-            }
-        }
+        if (placed.length) autoFit();
     }
 
     function applySize(card, sz) {
@@ -795,6 +830,21 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
             a.click();
         });
     });
+
+    /* ---- Zoom-Steuerung ---- */
+    document.getElementById('zoomInBtn')?.addEventListener('click', () => {
+        currentZoom = Math.min(currentZoom * 1.25, 4);
+        autoFit();
+    });
+    document.getElementById('zoomOutBtn')?.addEventListener('click', () => {
+        currentZoom = Math.max(currentZoom * 0.8, 0.15);
+        autoFit();
+    });
+    document.getElementById('zoomFitBtn')?.addEventListener('click', () => {
+        currentZoom = 1.0;
+        autoFit();
+    });
+    window.addEventListener('resize', () => { if (cloudLayout.size) autoFit(); });
 
     /* ---- Start ---- */
     pollCloud();
