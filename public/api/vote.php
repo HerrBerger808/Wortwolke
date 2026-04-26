@@ -24,7 +24,7 @@ $label     = trim((string) ($body['label']      ?? ''));
 
 if ($sessionId <= 0)                         jsonResponse(['success'=>false,'error'=>'Ungültige session_id'], 400);
 if (!WordCloudManager::isValidToken($token)) jsonResponse(['success'=>false,'error'=>'Ungültiges Token'], 400);
-if ($arasaacId <= 0)                         jsonResponse(['success'=>false,'error'=>'Ungültige arasaac_id'], 400);
+if ($arasaacId === 0)                         jsonResponse(['success'=>false,'error'=>'Ungültige arasaac_id'], 400);
 if ($label === '')                           jsonResponse(['success'=>false,'error'=>'Label fehlt'], 400);
 
 $mgr = new WordCloudManager();

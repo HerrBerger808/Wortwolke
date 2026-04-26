@@ -25,13 +25,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $symbols = [];
     if ($session['mode'] !== 'search') {
-        $ids    = $_POST['symbol_id']    ?? [];
-        $labels = $_POST['symbol_label'] ?? [];
+        $ids       = $_POST['symbol_id']        ?? [];
+        $labels    = $_POST['symbol_label']     ?? [];
+        $imageUrls = $_POST['symbol_image_url'] ?? [];
         foreach ($ids as $i => $rawId) {
-            $rid   = (int)$rawId;
-            $label = trim($labels[$i] ?? '');
-            if ($rid > 0 && $label !== '') {
-                $symbols[] = ['arasaac_id' => $rid, 'label' => $label];
+            $rid      = (int) $rawId;
+            $label    = trim($labels[$i] ?? '');
+            $imageUrl = trim($imageUrls[$i] ?? '');
+            if ($rid !== 0 && $label !== '') {
+                $sym = ['arasaac_id' => $rid, 'label' => $label];
+                if ($rid < 0 && preg_match('#^/uploads/img_[a-f0-9_.]+\.(jpg|png|gif|webp)$#', $imageUrl)) {
+                    $sym['image_url'] = $imageUrl;
+                }
+                $symbols[] = $sym;
             }
             if (count($symbols) >= WordCloudManager::MAX_SYMBOLS) break;
         }
@@ -54,7 +60,9 @@ $existingJs = json_encode(
     array_map(fn($s) => [
         'id'        => (int)$s['arasaac_id'],
         'label'     => $s['label'],
-        'image_url' => WordCloudManager::imageUrl((int)$s['arasaac_id']),
+        'image_url' => (int)$s['arasaac_id'] < 0
+            ? ($s['image_url'] ?? '')
+            : WordCloudManager::imageUrl((int)$s['arasaac_id']),
     ], $session['predefined_symbols']),
     JSON_UNESCAPED_UNICODE
 );

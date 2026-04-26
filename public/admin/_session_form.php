@@ -58,7 +58,7 @@
             </div>
             <div class="card-body">
 
-                <!-- Suche -->
+                <!-- ARASAAC-Suche -->
                 <label class="form-label fw-semibold">ARASAAC-Symbol suchen</label>
                 <div class="input-group mb-1">
                     <span class="input-group-text bg-white"><i class="bi bi-search text-muted"></i></span>
@@ -77,6 +77,22 @@
                     <span class="text-muted small ms-2">Suche…</span>
                 </div>
                 <div id="symResults" class="sym-results mb-3"></div>
+
+                <!-- Eigenes Bild hochladen -->
+                <div class="mb-3 pb-3 border-bottom">
+                    <label class="form-label fw-semibold">Oder eigenes Bild hochladen</label>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="symUploadBtn">
+                            <i class="bi bi-upload me-1"></i>Bild auswählen…
+                        </button>
+                        <span id="symUploadStatus" class="small text-muted"></span>
+                    </div>
+                    <input type="file" id="symUploadInput"
+                           accept="image/jpeg,image/png,image/gif,image/webp" class="d-none">
+                    <div class="text-muted" style="font-size:11px;margin-top:4px;">
+                        JPG, PNG, GIF oder WEBP · max. 5 MB · wird auf max. 200 px Breite skaliert
+                    </div>
+                </div>
 
                 <!-- Auswahl -->
                 <div class="d-flex justify-content-between align-items-center mb-1">

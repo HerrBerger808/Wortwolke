@@ -13,3 +13,7 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# Hochgeladene Bilder (nur Verzeichnis behalten)
+/public/uploads/*
+!/public/uploads/.gitkeep

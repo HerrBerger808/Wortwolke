@@ -27,6 +27,22 @@ $myVotes      = (WordCloudManager::isValidToken($token))
                 : [];
 $participants = $mgr->activeParticipants($sessionId);
 
+// Bild-URLs für eigene Symbole (negative IDs) nachschlagen
+$customUrls = [];
+foreach ($session['predefined_symbols'] as $sym) {
+    $aid = (int) $sym['arasaac_id'];
+    if ($aid < 0 && !empty($sym['image_url'])) {
+        $customUrls[$aid] = $sym['image_url'];
+    }
+}
+foreach ($items as &$item) {
+    $aid = (int) $item['arasaac_id'];
+    if (isset($customUrls[$aid])) {
+        $item['image_url'] = $customUrls[$aid];
+    }
+}
+unset($item);
+
 jsonResponse([
     'status'       => $session['status'],
     'items'        => $items,

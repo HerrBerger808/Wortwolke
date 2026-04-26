@@ -61,6 +61,43 @@ function runSearch(q) {
         });
 }
 
+// ---- Eigenes Bild hochladen ----
+document.getElementById('symUploadBtn').addEventListener('click', function () {
+    document.getElementById('symUploadInput').click();
+});
+
+document.getElementById('symUploadInput').addEventListener('change', function () {
+    const file = this.files[0];
+    if (!file) return;
+
+    if (symbols.length >= MAX_SYM) {
+        alert('Maximal ' + MAX_SYM + ' Symbole pro Sitzung.');
+        this.value = '';
+        return;
+    }
+
+    const status = document.getElementById('symUploadStatus');
+    status.textContent = 'Wird hochgeladen…';
+
+    const fd = new FormData();
+    fd.append('image', file);
+    fd.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+
+    fetch('/api/upload.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                status.textContent = 'Fehler: ' + data.error;
+                return;
+            }
+            status.textContent = '';
+            const baseName = file.name.replace(/\.[^.]+$/, '');
+            addSymbol({ id: data.id, keywords: [baseName], image_url: data.image_url });
+        })
+        .catch(() => { status.textContent = 'Upload fehlgeschlagen.'; })
+        .finally(() => { this.value = ''; });
+});
+
 // ---- Symbol hinzufügen / entfernen ----
 function addSymbol(sym) {
     if (symbols.length >= MAX_SYM) {
@@ -68,7 +105,7 @@ function addSymbol(sym) {
         return;
     }
     if (symbols.some(s => s.id === sym.id)) return;
-    symbols.push({ id: sym.id, label: sym.keywords[0] || '', image_url: sym.image_url });
+    symbols.push({ id: sym.id, label: sym.keywords[0] || '', image_url: sym.image_url || '' });
     renderSymbols();
     refreshResultsUsed();
 }
@@ -88,12 +125,16 @@ function renderSymbols() {
     empty.classList.toggle('d-none', symbols.length > 0);
 
     symbols.forEach((sym, idx) => {
+        const imgSrc = sym.image_url
+            ? sym.image_url
+            : `https://static.arasaac.org/pictograms/${sym.id}/${sym.id}_300.png`;
         const d = document.createElement('div');
         d.className = 'sym-card-admin';
         d.innerHTML = `
             <button type="button" class="del" onclick="removeSymbol(${sym.id})">&times;</button>
-            <img src="${sym.image_url}" alt="" loading="lazy">
-            <input type="hidden" name="symbol_id[]"    value="${sym.id}">
+            <img src="${imgSrc}" alt="" loading="lazy">
+            <input type="hidden" name="symbol_id[]"        value="${sym.id}">
+            <input type="hidden" name="symbol_image_url[]" value="${esc(sym.image_url || '')}">
             <input type="text"   name="symbol_label[]" value="${esc(sym.label)}"
                    maxlength="80" placeholder="Beschriftung"
                    oninput="symbols[${idx}].label = this.value">`;
