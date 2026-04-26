@@ -88,6 +88,33 @@ class DB
         }
     }
 
+    /** Bestehende Tabellen migrieren (neue Spalten idempotent hinzufügen) */
+    public static function migrateSchema(): void
+    {
+        $pdo  = self::get();
+        $cols = array_column($pdo->query("DESCRIBE wordcloud_sessions")->fetchAll(), 'Field');
+
+        if (!in_array('is_guest', $cols)) {
+            $pdo->exec("ALTER TABLE wordcloud_sessions
+                ADD COLUMN is_guest TINYINT(1) NOT NULL DEFAULT 0");
+        }
+        if (!in_array('guest_admin_token', $cols)) {
+            $pdo->exec("ALTER TABLE wordcloud_sessions
+                ADD COLUMN guest_admin_token VARCHAR(64) DEFAULT NULL,
+                ADD INDEX idx_guest_token (guest_admin_token)");
+        }
+        if (!in_array('expires_at', $cols)) {
+            $pdo->exec("ALTER TABLE wordcloud_sessions
+                ADD COLUMN expires_at DATETIME DEFAULT NULL,
+                ADD INDEX idx_expires (expires_at)");
+        }
+
+        $pdo->exec("CREATE TABLE IF NOT EXISTS wordcloud_settings (
+            setting_key   VARCHAR(64) PRIMARY KEY,
+            setting_value TEXT NOT NULL DEFAULT ''
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    }
+
     private function __construct() {}
     private function __clone() {}
 }

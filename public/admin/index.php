@@ -14,13 +14,18 @@ adminNav('/admin/');
 echo renderFlash();
 ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <h2 class="fw-bold mb-0">
         <i class="bi bi-grid-fill text-indigo me-2"></i>Wortwolken-Sitzungen
     </h2>
-    <a href="/admin/create.php" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i>Neue Sitzung
-    </a>
+    <div class="d-flex gap-2">
+        <a href="/admin/export.php?type=sessions" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-download me-1"></i>CSV-Export
+        </a>
+        <a href="/admin/create.php" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i>Neue Sitzung
+        </a>
+    </div>
 </div>
 
 <div class="alert alert-light border small py-2 mb-4">
@@ -53,7 +58,12 @@ echo renderFlash();
         <div class="card border-0 shadow-sm h-100 session-card">
             <div class="card-header d-flex align-items-center justify-content-between py-2 bg-white border-bottom">
                 <span class="fw-semibold text-truncate"><?= e($s['title']) ?></span>
-                <span class="badge bg-success ms-2 flex-shrink-0">Aktiv</span>
+                <div class="d-flex gap-1 flex-shrink-0">
+                    <?php if (!empty($s['is_guest'])): ?>
+                    <span class="badge bg-warning text-dark">Gast</span>
+                    <?php endif; ?>
+                    <span class="badge bg-success">Aktiv</span>
+                </div>
             </div>
             <div class="card-body pb-2">
                 <!-- Code -->
@@ -157,7 +167,12 @@ echo renderFlash();
             <tbody>
             <?php foreach ($closed as $s): ?>
             <tr>
-                <td class="fw-semibold"><?= e($s['title']) ?></td>
+                <td class="fw-semibold">
+                    <?= e($s['title']) ?>
+                    <?php if (!empty($s['is_guest'])): ?>
+                    <span class="badge bg-warning text-dark ms-1">Gast</span>
+                    <?php endif; ?>
+                </td>
                 <td><code class="text-muted"><?= e($s['session_code']) ?></code></td>
                 <td>
                     <?php

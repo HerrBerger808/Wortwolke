@@ -16,6 +16,34 @@ class WordCloudManager
     }
 
     // =========================================================
+    // Einstellungen
+    // =========================================================
+
+    public function getSetting(string $key, string $default = ''): string
+    {
+        static $cache = [];
+        if (array_key_exists($key, $cache)) return $cache[$key];
+        try {
+            $stmt = $this->db->prepare(
+                "SELECT setting_value FROM wordcloud_settings WHERE setting_key = :k"
+            );
+            $stmt->execute([':k' => $key]);
+            $row = $stmt->fetch();
+            return $cache[$key] = $row ? $row['setting_value'] : $default;
+        } catch (\Throwable $e) {
+            return $default;
+        }
+    }
+
+    public function setSetting(string $key, string $value): void
+    {
+        $this->db->prepare(
+            "INSERT INTO wordcloud_settings (setting_key, setting_value) VALUES (:k, :v)
+             ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)"
+        )->execute([':k' => $key, ':v' => $value]);
+    }
+
+    // =========================================================
     // Sitzungen
     // =========================================================
 
@@ -38,20 +66,58 @@ class WordCloudManager
         return ['id' => (int) $this->db->lastInsertId(), 'code' => $code];
     }
 
+    public function createGuestSession(string $title, string $mode, array $symbols, int $hours): array
+    {
+        $symbols = array_slice($symbols, 0, self::MAX_SYMBOLS);
+        $code    = $this->generateCode();
+        $token   = bin2hex(random_bytes(32));
+        $expires = date('Y-m-d H:i:s', time() + max(1, $hours) * 3600);
+
+        $stmt = $this->db->prepare(
+            "INSERT INTO wordcloud_sessions
+                (session_code, title, mode, predefined_symbols, is_guest, guest_admin_token, expires_at)
+             VALUES (:code, :title, :mode, :sym, 1, :tok, :exp)"
+        );
+        $stmt->execute([
+            ':code'  => $code,
+            ':title' => $title,
+            ':mode'  => $mode,
+            ':sym'   => empty($symbols) ? null : json_encode($symbols, JSON_UNESCAPED_UNICODE),
+            ':tok'   => $token,
+            ':exp'   => $expires,
+        ]);
+
+        return ['id' => (int) $this->db->lastInsertId(), 'code' => $code, 'token' => $token];
+    }
+
     public function updateSession(int $id, string $title, string $mode, array $symbols): bool
     {
+        // Vorherige Custom-Images merken, um Waisen zu löschen
+        $old       = $this->getSession($id);
+        $oldImages = $old ? $this->extractCustomImageUrls($old['predefined_symbols']) : [];
+
         $symbols = array_slice($symbols, 0, self::MAX_SYMBOLS);
         $stmt    = $this->db->prepare(
             "UPDATE wordcloud_sessions
              SET title = :title, mode = :mode, predefined_symbols = :sym
              WHERE id = :id"
         );
-        return $stmt->execute([
+        $result = $stmt->execute([
             ':title' => $title,
             ':mode'  => $mode,
             ':sym'   => empty($symbols) ? null : json_encode($symbols, JSON_UNESCAPED_UNICODE),
             ':id'    => $id,
         ]);
+
+        // Nicht mehr verwendete Bilder löschen
+        $newImages = $this->extractCustomImageUrls($symbols);
+        foreach (array_diff($oldImages, $newImages) as $url) {
+            if (!$this->isImageUsedInAnySession($url, $id)) {
+                $this->deleteImageFile($url);
+            }
+        }
+
+        return $result;
     }
 
     public function getSessions(?string $status = null): array
@@ -99,6 +165,18 @@ class WordCloudManager
         return $row;
     }
 
+    public function getSessionByGuestToken(string $token): ?array
+    {
+        $stmt = $this->db->prepare(
+            "SELECT * FROM wordcloud_sessions WHERE guest_admin_token = :tok AND is_guest = 1"
+        );
+        $stmt->execute([':tok' => $token]);
+        $row = $stmt->fetch();
+        if (!$row) return null;
+        $row['predefined_symbols'] = $this->decodeSymbols($row['predefined_symbols']);
+        return $row;
+    }
+
     public function closeSession(int $id): bool
     {
         return $this->setStatus($id, 'closed');
@@ -111,8 +189,20 @@ class WordCloudManager
 
     public function deleteSession(int $id): bool
     {
-        $stmt = $this->db->prepare("DELETE FROM wordcloud_sessions WHERE id = :id");
-        return $stmt->execute([':id' => $id]);
+        $session     = $this->getSession($id);
+        $customImages = $session ? $this->extractCustomImageUrls($session['predefined_symbols']) : [];
+
+        $stmt   = $this->db->prepare("DELETE FROM wordcloud_sessions WHERE id = :id");
+        $result = $stmt->execute([':id' => $id]);
+
+        // Bilder löschen, die nirgends mehr verwendet werden
+        foreach ($customImages as $url) {
+            if (!$this->isImageUsedInAnySession($url, 0)) {
+                $this->deleteImageFile($url);
+            }
+        }
+
+        return $result;
     }
 
     public function resetVotes(int $id): bool
@@ -121,16 +211,25 @@ class WordCloudManager
         return $stmt->execute([':id' => $id]);
     }
 
+    /** Abgelaufene Gastsitzungen löschen */
+    public function cleanupExpiredGuestSessions(): void
+    {
+        try {
+            $stmt = $this->db->query(
+                "SELECT id FROM wordcloud_sessions WHERE is_guest = 1 AND expires_at < NOW()"
+            );
+            foreach ($stmt->fetchAll() as $row) {
+                $this->deleteSession((int) $row['id']);
+            }
+        } catch (\Throwable $e) {}
+    }
+
     // =========================================================
     // Abstimmung
     // =========================================================
 
-    /**
-     * Stimme umschalten. Gibt ['success', 'voted', ('error')] zurück.
-     */
     public function toggleVote(int $sessionId, string $token, int $arasaacId, string $label): array
     {
-        // Sitzung prüfen
         $stmt = $this->db->prepare(
             "SELECT status FROM wordcloud_sessions WHERE id = :id"
         );
@@ -144,7 +243,6 @@ class WordCloudManager
             return ['success' => false, 'voted' => false, 'error' => 'Sitzung ist geschlossen'];
         }
 
-        // Bereits abgestimmt?
         $check = $this->db->prepare(
             "SELECT id FROM wordcloud_votes
              WHERE session_id = :sid AND participant_token = :tok AND arasaac_id = :aid"
@@ -152,7 +250,6 @@ class WordCloudManager
         $check->execute([':sid' => $sessionId, ':tok' => $token, ':aid' => $arasaacId]);
 
         if ($check->fetch()) {
-            // Stimme zurückziehen
             $this->db->prepare(
                 "DELETE FROM wordcloud_votes
                  WHERE session_id = :sid AND participant_token = :tok AND arasaac_id = :aid"
@@ -160,7 +257,6 @@ class WordCloudManager
             return ['success' => true, 'voted' => false];
         }
 
-        // Stimme hinzufügen
         $this->db->prepare(
             "INSERT INTO wordcloud_votes (session_id, participant_token, arasaac_id, label)
              VALUES (:sid, :tok, :aid, :label)"
@@ -173,7 +269,6 @@ class WordCloudManager
         return ['success' => true, 'voted' => true];
     }
 
-    /** Aggregierte Stimmen einer Sitzung */
     public function getCloudData(int $sessionId): array
     {
         $stmt = $this->db->prepare(
@@ -187,7 +282,6 @@ class WordCloudManager
         return $stmt->fetchAll();
     }
 
-    /** Welche Symbole hat dieser Teilnehmer gewählt? */
     public function getParticipantVotes(int $sessionId, string $token): array
     {
         $stmt = $this->db->prepare(
@@ -198,7 +292,6 @@ class WordCloudManager
         return array_map('intval', array_column($stmt->fetchAll(), 'arasaac_id'));
     }
 
-    /** Anzahl aktiver Teilnehmer (Stimme in letzten 5 Minuten) */
     public function activeParticipants(int $sessionId): int
     {
         $stmt = $this->db->prepare(
@@ -214,7 +307,6 @@ class WordCloudManager
     // ARASAAC-API
     // =========================================================
 
-    /** Symbol-Suche über die ARASAAC REST-API */
     public function searchArasaac(string $query, string $lang = 'de'): array
     {
         $lang = preg_replace('/[^a-z]/', '', strtolower($lang)) ?: 'de';
@@ -256,6 +348,46 @@ class WordCloudManager
     public static function imageUrl(int $id): string
     {
         return self::ARASAAC_CDN . '/' . $id . '/' . $id . '_300.png';
+    }
+
+    // =========================================================
+    // Bild-Cleanup
+    // =========================================================
+
+    private function extractCustomImageUrls(array $symbols): array
+    {
+        $urls = [];
+        foreach ($symbols as $sym) {
+            if ((int)($sym['arasaac_id'] ?? 0) < 0 && !empty($sym['image_url'])) {
+                $urls[] = $sym['image_url'];
+            }
+        }
+        return $urls;
+    }
+
+    private function isImageUsedInAnySession(string $imageUrl, int $excludeId): bool
+    {
+        $sql  = $excludeId
+            ? "SELECT predefined_symbols FROM wordcloud_sessions WHERE id != :eid AND predefined_symbols IS NOT NULL"
+            : "SELECT predefined_symbols FROM wordcloud_sessions WHERE predefined_symbols IS NOT NULL";
+        $stmt = $excludeId
+            ? $this->db->prepare($sql)
+            : $this->db->query($sql);
+        if ($excludeId) $stmt->execute([':eid' => $excludeId]);
+
+        foreach ($stmt->fetchAll() as $row) {
+            foreach ($this->decodeSymbols($row['predefined_symbols']) as $sym) {
+                if (($sym['image_url'] ?? '') === $imageUrl) return true;
+            }
+        }
+        return false;
+    }
+
+    private function deleteImageFile(string $imageUrl): void
+    {
+        if (!preg_match('#^/uploads/img_[a-f0-9_.]+\.(jpg|png|gif|webp)$#', $imageUrl)) return;
+        $path = defined('APP_ROOT') ? APP_ROOT . '/public' . $imageUrl : '';
+        if ($path && file_exists($path)) @unlink($path);
     }
 
     // =========================================================
