@@ -243,13 +243,38 @@ class WordCloudManager
         return $stmt->execute([':id' => $id]);
     }
 
-    /** Abgelaufene Gastsitzungen löschen */
+    /** Abgelaufene Gastsitzungen schließen und nach Aufbewahrungsfrist löschen */
     public function cleanupExpiredGuestSessions(): void
     {
         try {
-            $stmt = $this->db->query(
-                "SELECT id FROM wordcloud_sessions WHERE is_guest = 1 AND expires_at < NOW()"
+            // 1. Abgelaufene aktive Sitzungen schließen
+            $this->db->exec(
+                "UPDATE wordcloud_sessions SET status = 'closed'
+                 WHERE is_guest = 1 AND status = 'active' AND expires_at < NOW()"
             );
+
+            // 2. Sitzungen nach Ablauf der Aufbewahrungsfrist löschen
+            $retHours = 0;
+            try {
+                $r = $this->db->prepare(
+                    "SELECT setting_value FROM wordcloud_settings WHERE setting_key = 'guest_retention_hours'"
+                );
+                $r->execute();
+                $retHours = max(0, (int) ($r->fetchColumn() ?: 0));
+            } catch (\Throwable $e) {}
+
+            if ($retHours > 0) {
+                $stmt = $this->db->prepare(
+                    "SELECT id FROM wordcloud_sessions
+                     WHERE is_guest = 1 AND expires_at < DATE_SUB(NOW(), INTERVAL :h HOUR)"
+                );
+                $stmt->execute([':h' => $retHours]);
+            } else {
+                $stmt = $this->db->query(
+                    "SELECT id FROM wordcloud_sessions
+                     WHERE is_guest = 1 AND expires_at < NOW()"
+                );
+            }
             foreach ($stmt->fetchAll() as $row) {
                 $this->deleteSession((int) $row['id']);
             }

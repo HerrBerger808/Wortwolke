@@ -11,6 +11,12 @@ $mode     = $session['mode']   ?? '';
 $isClosed = $session           && $session['status'] === 'closed';
 $isActive = $session           && $session['status'] === 'active';
 
+$displayMode = 'cloud';
+if ($session) {
+    $dm = $mgr->getSetting('cloud_display_mode', 'cloud');
+    $displayMode = in_array($dm, ['cloud', 'list']) ? $dm : 'cloud';
+}
+
 // Presets als JSON für JS (image_url für eigene Bilder mitgeben)
 $presetsJson = $session
     ? json_encode(
@@ -458,22 +464,36 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 (function() {
     'use strict';
 
-    const SESSION_ID = <?= (int)$session['id'] ?>;
-    const MODE       = <?= json_encode($mode) ?>;
-    const CDN        = 'https://static.arasaac.org/pictograms';
-    const PRESETS    = <?= $presetsJson ?>;
-    const POLL_MS    = <?= defined('POLL_MS') ? (int)POLL_MS : 3000 ?>;
+    const SESSION_ID   = <?= (int)$session['id'] ?>;
+    const MODE         = <?= json_encode($mode) ?>;
+    const CDN          = 'https://static.arasaac.org/pictograms';
+    const PRESETS      = <?= $presetsJson ?>;
+    const POLL_MS      = <?= defined('POLL_MS') ? (int)POLL_MS : 3000 ?>;
+    const DISPLAY_MODE = <?= json_encode($displayMode) ?>;
 
     let currentZoom = 1.0;
 
     function autoFit() {
-        if (!cloudLayout.size) return;
         const area   = document.getElementById('cloudArea');
         const canvas = document.getElementById('cloudCanvas');
         if (!canvas) return;
         const areaW = area.clientWidth  || 600;
         const areaH = area.clientHeight || 400;
 
+        if (DISPLAY_MODE === 'list') {
+            const cntW = canvas.offsetWidth  || areaW;
+            const cntH = canvas.offsetHeight || areaH;
+            if (!cntH) return;
+            const base  = Math.min(areaW / (cntW + 4), areaH / (cntH + 4));
+            const scale = Math.max(0.15, Math.min(base * currentZoom, 4));
+            const tx    = Math.round((areaW - cntW * scale) / 2);
+            const ty    = Math.round((areaH - cntH * scale) / 2);
+            canvas.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+            return;
+        }
+
+        // Cloud-Modus
+        if (!cloudLayout.size) return;
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         cloudLayout.forEach((pos, aid) => {
             const c = document.getElementById('c' + aid);
@@ -601,8 +621,53 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
     /* ---- Positionen persistent (neu platzieren nur bei neuen Karten) ---- */
     const cloudLayout = new Map();
 
-    /* ---- Cloud rendern ---- */
+    /* ---- Reihen-Darstellung (von groß nach klein) ---- */
+    function renderList(items) {
+        const area   = document.getElementById('cloudArea');
+        const canvas = document.getElementById('cloudCanvas');
+        const empty  = document.getElementById('cloudEmpty');
+
+        if (!items.length) {
+            empty.classList.remove('d-none');
+            canvas.innerHTML = '';
+            canvas.style.cssText = 'position:absolute;left:0;top:0;transform-origin:0 0;';
+            return;
+        }
+        empty.classList.add('d-none');
+
+        const areaW = area.clientWidth || 600;
+        canvas.style.cssText =
+            `position:absolute;left:0;top:0;transform-origin:0 0;width:${areaW}px;` +
+            `display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:center;` +
+            `gap:10px;padding:16px;box-sizing:border-box;`;
+
+        const mx     = Math.max(...items.map(i => +i.vote_count), 1);
+        const sorted = [...items].sort((a, b) => b.vote_count - a.vote_count);
+
+        canvas.innerHTML = '';
+        sorted.forEach(item => {
+            const aid  = +item.arasaac_id;
+            const sz   = calcSize(item.vote_count, mx);
+            const card = document.createElement('div');
+            card.className   = 'sym-card';
+            card.id          = 'c' + aid;
+            card.dataset.aid = String(aid);
+            card.innerHTML   = `
+                <img src="${getImageUrl(aid)}" alt="" loading="lazy"
+                     style="width:${sz.img}px;height:${sz.img}px;object-fit:contain;">
+                <span class="sym-lbl" style="font-size:${sz.font}px;">${esc(item.label)}</span>
+                <span class="sym-votes">${item.vote_count} ×</span>`;
+            card.classList.toggle('voted', myVotes.has(aid));
+            card.addEventListener('click', () => toggleVote(aid, item.label));
+            canvas.appendChild(card);
+        });
+
+        requestAnimationFrame(autoFit);
+    }
+
+    /* ---- Cloud rendern (Dispatcher) ---- */
     function renderCloud(items) {
+        if (DISPLAY_MODE === 'list') { renderList(items); return; }
         const area   = document.getElementById('cloudArea');
         const canvas = document.getElementById('cloudCanvas');
         const empty  = document.getElementById('cloudEmpty');
@@ -678,7 +743,12 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
             }
         });
 
-        if (newAids.length) requestAnimationFrame(() => placeItems(sorted, newAids));
+        if (newAids.length) {
+            requestAnimationFrame(() => { placeItems(sorted, newAids); autoFit(); });
+        } else {
+            // Keine neuen Karten, aber Größen könnten sich geändert haben
+            requestAnimationFrame(autoFit);
+        }
     }
 
     /* ---- Neue Karten spiralförmig platzieren (größte zuerst = Mitte) ---- */
@@ -736,7 +806,6 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
             card.style.visibility = 'visible';
         });
 
-        if (placed.length) autoFit();
     }
 
     function applySize(card, sz) {
@@ -844,7 +913,14 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
         currentZoom = 1.0;
         autoFit();
     });
-    window.addEventListener('resize', () => { if (cloudLayout.size) autoFit(); });
+    window.addEventListener('resize', () => {
+        if (DISPLAY_MODE === 'list') {
+            // Canvas-Breite anpassen, dann neu rendern
+            if (lastCloudItems.length) renderList(lastCloudItems);
+        } else if (cloudLayout.size) {
+            autoFit();
+        }
+    });
 
     /* ---- Start ---- */
     pollCloud();

@@ -9,8 +9,9 @@ $sessions = $mgr->getSessions(null, true);   // nur Gastsitzungen
 $active   = array_filter($sessions, fn($s) => $s['status'] === 'active');
 $closed   = array_filter($sessions, fn($s) => $s['status'] === 'closed');
 
-$guestEnabled = $mgr->getSetting('guest_sessions_enabled', '0') === '1';
-$totalHours   = max(1, (int) $mgr->getSetting('guest_session_hours', '24'));
+$guestEnabled   = $mgr->getSetting('guest_sessions_enabled', '0') === '1';
+$totalHours     = max(1, (int) $mgr->getSetting('guest_session_hours', '24'));
+$retentionHours = max(0, (int) $mgr->getSetting('guest_retention_hours', '0'));
 $days         = intdiv($totalHours, 24);
 $hrs          = $totalHours % 24;
 $expiryLabel  = ($days > 0 ? $days . ' Tag' . ($days != 1 ? 'e' : '') . ' ' : '')
@@ -160,13 +161,20 @@ echo renderFlash();
                     <th>Modus</th>
                     <th class="text-end">Teiln.</th>
                     <th class="text-end">Stimmen</th>
-                    <th>Läuft ab</th>
+                    <th>Abgelaufen</th>
+                    <th>Löschen am</th>
                     <th>Erstellt</th>
                     <th></th>
                 </tr>
             </thead>
             <tbody>
             <?php foreach ($closed as $s): ?>
+            <?php
+                $expiredAt = $s['expires_at'] ? strtotime($s['expires_at']) : null;
+                $deleteAt  = ($expiredAt && $retentionHours > 0)
+                    ? $expiredAt + $retentionHours * 3600
+                    : $expiredAt;
+            ?>
             <tr>
                 <td class="fw-semibold"><?= e($s['title']) ?></td>
                 <td><code class="text-muted"><?= e($s['session_code']) ?></code></td>
@@ -182,7 +190,15 @@ echo renderFlash();
                 <td class="text-end"><?= $s['participant_count'] ?></td>
                 <td class="text-end"><?= $s['total_votes'] ?></td>
                 <td class="text-muted small">
-                    <?= $s['expires_at'] ? date('d.m.Y H:i', strtotime($s['expires_at'])) : '–' ?>
+                    <?= $expiredAt ? date('d.m.Y H:i', $expiredAt) : '–' ?>
+                </td>
+                <td class="small <?= ($deleteAt && $deleteAt < time()) ? 'text-danger' : 'text-muted' ?>">
+                    <?php if ($deleteAt): ?>
+                        <?= date('d.m.Y H:i', $deleteAt) ?>
+                        <?php if ($deleteAt > time()): ?>
+                        <br><span style="font-size:10px;">(noch <?= ceil(($deleteAt - time()) / 3600) ?> h)</span>
+                        <?php endif; ?>
+                    <?php else: ?>–<?php endif; ?>
                 </td>
                 <td class="text-muted small"><?= fmtDate($s['created_at']) ?></td>
                 <td class="text-end">
