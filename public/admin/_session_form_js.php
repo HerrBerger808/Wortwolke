@@ -4,7 +4,7 @@
 ?>
 <script>
 // getMax() is dynamic; window._maxSym is set by _session_form.php and updated via updateMaxSym()
-function getMax() { return window._maxSym || <?= WordCloudManager::getMax()BOLS_ABS ?>; }
+function getMax() { return window._maxSym || <?= WordCloudManager::MAX_SYMBOLS_ABS ?>; }
 let symbols   = <?= $existingJs ?? '[]' ?>;
 let searchTimer = null;
 
