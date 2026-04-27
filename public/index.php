@@ -99,6 +99,9 @@ $title = appTitle();
     <div class="admin-link mt-4">
         <a href="/admin/"><i class="bi bi-lock me-1"></i>Admin-Bereich</a>
     </div>
+    <?php $imp = impressumLink(); if ($imp): ?>
+    <div style="margin-top:20px;"><?= $imp ?></div>
+    <?php endif; ?>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
