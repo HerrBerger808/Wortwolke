@@ -3,7 +3,8 @@
 // Benötigt $existingJs (JSON-Array der vorhandenen Symbole)
 ?>
 <script>
-const MAX_SYM = <?= (int) WordCloudManager::MAX_SYMBOLS ?>;
+// getMax() is dynamic; window._maxSym is set by _session_form.php and updated via updateMaxSym()
+function getMax() { return window._maxSym || <?= WordCloudManager::getMax()BOLS_ABS ?>; }
 let symbols   = <?= $existingJs ?? '[]' ?>;
 let searchTimer = null;
 
@@ -70,8 +71,8 @@ document.getElementById('symUploadInput').addEventListener('change', function ()
     const file = this.files[0];
     if (!file) return;
 
-    if (symbols.length >= MAX_SYM) {
-        alert('Maximal ' + MAX_SYM + ' Symbole pro Sitzung.');
+    if (symbols.length >= getMax()) {
+        alert('Maximal ' + getMax() + ' Symbole pro Sitzung.');
         this.value = '';
         return;
     }
@@ -100,8 +101,8 @@ document.getElementById('symUploadInput').addEventListener('change', function ()
 
 // ---- Symbol hinzufügen / entfernen ----
 function addSymbol(sym) {
-    if (symbols.length >= MAX_SYM) {
-        alert('Maximal ' + MAX_SYM + ' Symbole pro Sitzung.');
+    if (symbols.length >= getMax()) {
+        alert('Maximal ' + getMax() + ' Symbole pro Sitzung.');
         return;
     }
     if (symbols.some(s => s.id === sym.id)) return;
@@ -119,7 +120,7 @@ function removeSymbol(id) {
 function renderSymbols() {
     const area  = document.getElementById('symSelected');
     const empty = document.getElementById('symEmpty');
-    document.getElementById('symCount').textContent = symbols.length + ' / ' + MAX_SYM;
+    document.getElementById('symCount').textContent = symbols.length + ' / ' + getMax();
 
     area.querySelectorAll('.sym-card-admin').forEach(el => el.remove());
     empty.classList.toggle('d-none', symbols.length > 0);

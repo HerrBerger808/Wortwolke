@@ -115,7 +115,19 @@ class DB
         }
         if (!in_array('display_mode', $cols)) {
             $pdo->exec("ALTER TABLE wordcloud_sessions
-                ADD COLUMN display_mode ENUM('cloud','list') NOT NULL DEFAULT 'cloud'");
+                ADD COLUMN display_mode ENUM('cloud','list','umfrage') NOT NULL DEFAULT 'cloud'");
+        } else {
+            // Erweitere ENUM falls 'umfrage' noch fehlt
+            $row = $pdo->query("SHOW COLUMNS FROM wordcloud_sessions LIKE 'display_mode'")->fetch();
+            if ($row && strpos($row['Type'], 'umfrage') === false) {
+                $pdo->exec("ALTER TABLE wordcloud_sessions
+                    MODIFY COLUMN display_mode ENUM('cloud','list','umfrage') NOT NULL DEFAULT 'cloud'");
+            }
+        }
+
+        if (!in_array('max_symbols', $cols)) {
+            $pdo->exec("ALTER TABLE wordcloud_sessions
+                ADD COLUMN max_symbols INT NOT NULL DEFAULT 0");
         }
 
         $pdo->exec("CREATE TABLE IF NOT EXISTS wordcloud_settings (

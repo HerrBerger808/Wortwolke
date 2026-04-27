@@ -41,7 +41,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Auto-migrate: Tabellen anlegen + migrieren (idempotent, einmal pro Schema-Version)
-define('SCHEMA_VERSION', 5);
+define('SCHEMA_VERSION', 6);
 if (defined('DB_HOST') && (($_SESSION['schema_v'] ?? 0) < SCHEMA_VERSION)) {
     try {
         DB::createSchema();

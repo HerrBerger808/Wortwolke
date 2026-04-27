@@ -30,10 +30,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $session['title']        = post('title');
     $session['mode']         = post('mode', 'both');
-    $session['display_mode'] = in_array($_POST['display_mode'] ?? '', ['cloud','list'])
+    $session['display_mode'] = in_array($_POST['display_mode'] ?? '', ['cloud','list','umfrage'])
         ? $_POST['display_mode'] : 'cloud';
+    $session['max_symbols']  = max(0, min(WordCloudManager::MAX_SYMBOLS_ABS, (int)($_POST['max_symbols'] ?? 0)));
     if (!in_array($session['mode'], ['symbols','search','both'])) $session['mode'] = 'both';
 
+    $effMax  = $session['max_symbols'] > 0 ? $session['max_symbols'] : WordCloudManager::MAX_SYMBOLS_ABS;
     $symbols = [];
     if ($session['mode'] !== 'search') {
         $ids       = $_POST['symbol_id']        ?? [];
@@ -50,7 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 $symbols[] = $sym;
             }
-            if (count($symbols) >= WordCloudManager::MAX_SYMBOLS) break;
+            if (count($symbols) >= $effMax) break;
         }
         $session['predefined_symbols'] = $symbols;
     }
@@ -60,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errors[] = 'Im Modus "Nur Symbole" muss mindestens ein Symbol hinzugefuegt werden.';
 
     if (empty($errors)) {
-        $mgr->updateSession($id, $session['title'], $session['mode'], $symbols, $session['display_mode']);
+        $mgr->updateSession($id, $session['title'], $session['mode'], $symbols, $session['display_mode'], $session['max_symbols']);
         setFlash('success', 'Sitzung aktualisiert.');
         header('Location: /admin/');
         exit;

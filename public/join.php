@@ -14,7 +14,7 @@ $isActive = $session           && $session['status'] === 'active';
 $displayMode = 'cloud';
 if ($session) {
     $dm = $session['display_mode'] ?? 'cloud';
-    $displayMode = in_array($dm, ['cloud', 'list']) ? $dm : 'cloud';
+    $displayMode = in_array($dm, ['cloud', 'list', 'umfrage']) ? $dm : 'cloud';
 }
 
 // Presets als JSON für JS (image_url für eigene Bilder mitgeben)
@@ -122,6 +122,35 @@ $presetsJson = $session
                    transition: font-size .45s ease; max-width: 120px; word-break: break-word; }
         .sym-card.voted .sym-lbl { color: #4f46e5; font-weight: 600; }
         .sym-votes { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+
+        /* ---- Umfrage-Darstellung ---- */
+        .survey-row {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 14px; margin-bottom: 8px;
+            background: #fff; border-radius: 12px; border: 2px solid #e5e7eb;
+            cursor: pointer; user-select: none;
+            transition: border-color .2s, background .2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .survey-row:hover  { border-color: #a5b4fc; background: #f5f3ff; }
+        .survey-row:active { transform: scale(.99); }
+        .survey-row.voted  { border-color: #4f46e5; background: #ede9fe; }
+        .survey-rank { font-size: 1.5rem; font-weight: 800; min-width: 44px;
+                       text-align: center; color: #6b7280; flex-shrink: 0; }
+        .survey-rank.top1 { color: #d97706; }
+        .survey-rank.top2 { color: #9ca3af; }
+        .survey-rank.top3 { color: #92400e; }
+        .survey-img  { width: 54px; height: 54px; object-fit: contain; flex-shrink: 0; }
+        .survey-info { flex: 1; min-width: 0; }
+        .survey-label { font-weight: 600; font-size: .95rem; color: #374151; margin-bottom: 5px;
+                        overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .survey-row.voted .survey-label { color: #4f46e5; }
+        .survey-bar-wrap { background: #e5e7eb; border-radius: 4px; height: 10px; }
+        .survey-bar { background: #4f46e5; border-radius: 4px; height: 10px;
+                      transition: width .6s ease; min-width: 4px; }
+        .survey-votes { text-align: right; font-size: 1.3rem; font-weight: 700;
+                        color: #374151; min-width: 52px; flex-shrink: 0; line-height: 1.1; }
+        .survey-votes-lbl { display: block; font-size: 10px; font-weight: 400; color: #9ca3af; }
 
         /* ---- Wolken-Bereich ---- */
         .cloud-area {
@@ -480,7 +509,7 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
         const areaW = area.clientWidth  || 600;
         const areaH = area.clientHeight || 400;
 
-        if (DISPLAY_MODE === 'list') {
+        if (DISPLAY_MODE === 'list' || DISPLAY_MODE === 'umfrage') {
             const cntW = canvas.offsetWidth  || areaW;
             const cntH = canvas.offsetHeight || areaH;
             if (!cntH) return;
@@ -665,9 +694,60 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
         requestAnimationFrame(autoFit);
     }
 
+    /* ---- Umfrage-Darstellung (Rangliste) ---- */
+    function renderSurvey(items) {
+        const area   = document.getElementById('cloudArea');
+        const canvas = document.getElementById('cloudCanvas');
+        const empty  = document.getElementById('cloudEmpty');
+
+        if (!items.length) {
+            empty.classList.remove('d-none');
+            canvas.innerHTML = '';
+            canvas.style.cssText = 'position:absolute;left:0;top:0;transform-origin:0 0;';
+            return;
+        }
+        empty.classList.add('d-none');
+
+        const areaW  = area.clientWidth || 600;
+        canvas.style.cssText =
+            `position:absolute;left:0;top:0;transform-origin:0 0;width:${areaW}px;` +
+            `padding:12px 16px;box-sizing:border-box;`;
+
+        const mx     = Math.max(...items.map(i => +i.vote_count), 1);
+        const sorted = [...items].sort((a, b) => b.vote_count - a.vote_count);
+        const medals = ['🥇', '🥈', '🥉'];
+
+        canvas.innerHTML = '';
+        sorted.forEach((item, idx) => {
+            const aid   = +item.arasaac_id;
+            const votes = +item.vote_count;
+            const pct   = mx > 0 ? Math.round(votes / mx * 100) : 0;
+            const rank  = idx + 1;
+            const topCls = rank <= 3 ? ' top' + rank : '';
+
+            const row = document.createElement('div');
+            row.id          = 'c' + aid;
+            row.dataset.aid = String(aid);
+            row.className   = 'survey-row' + (myVotes.has(aid) ? ' voted' : '');
+            row.innerHTML   =
+                `<div class="survey-rank${topCls}">${rank <= 3 ? medals[rank - 1] : rank + '.'}</div>` +
+                `<img src="${getImageUrl(aid)}" class="survey-img" alt="" loading="lazy">` +
+                `<div class="survey-info">` +
+                    `<div class="survey-label">${esc(item.label)}</div>` +
+                    `<div class="survey-bar-wrap"><div class="survey-bar" style="width:${pct}%"></div></div>` +
+                `</div>` +
+                `<div class="survey-votes">${votes}<span class="survey-votes-lbl">Stimmen</span></div>`;
+            row.addEventListener('click', () => toggleVote(aid, item.label));
+            canvas.appendChild(row);
+        });
+
+        requestAnimationFrame(autoFit);
+    }
+
     /* ---- Cloud rendern (Dispatcher) ---- */
     function renderCloud(items) {
-        if (DISPLAY_MODE === 'list') { renderList(items); return; }
+        if (DISPLAY_MODE === 'list')    { renderList(items);   return; }
+        if (DISPLAY_MODE === 'umfrage') { renderSurvey(items); return; }
         const area   = document.getElementById('cloudArea');
         const canvas = document.getElementById('cloudCanvas');
         const empty  = document.getElementById('cloudEmpty');
@@ -914,9 +994,8 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
         autoFit();
     });
     window.addEventListener('resize', () => {
-        if (DISPLAY_MODE === 'list') {
-            // Canvas-Breite anpassen, dann neu rendern
-            if (lastCloudItems.length) renderList(lastCloudItems);
+        if (DISPLAY_MODE === 'list' || DISPLAY_MODE === 'umfrage') {
+            if (lastCloudItems.length) renderCloud(lastCloudItems);
         } else if (cloudLayout.size) {
             autoFit();
         }

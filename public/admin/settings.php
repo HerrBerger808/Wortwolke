@@ -18,7 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $retHours       = max(0, min(23,  (int) ($_POST['ret_hours']   ?? 0)));
     $retTotalHours  = $retDays * 24 + $retHours;
     $guestMaxActive = max(0, (int) ($_POST['guest_max_active'] ?? 0));
-    $displayMode    = in_array($_POST['display_mode'] ?? '', ['cloud','list']) ? $_POST['display_mode'] : 'cloud';
+    $displayMode    = in_array($_POST['display_mode'] ?? '', ['cloud','list','umfrage']) ? $_POST['display_mode'] : 'cloud';
 
     $mgr->setSetting('guest_sessions_enabled',  $guestEnabled);
     $mgr->setSetting('guest_session_hours',     (string) $totalHours);
@@ -37,7 +37,7 @@ $currentRetDays  = intdiv($retTotalHours, 24);
 $currentRetHours = $retTotalHours % 24;
 $guestMaxActive  = max(0, (int) $mgr->getSetting('guest_max_active', '0'));
 $displayMode     = $mgr->getSetting('cloud_display_mode', 'cloud');
-if (!in_array($displayMode, ['cloud','list'])) $displayMode = 'cloud';
+if (!in_array($displayMode, ['cloud','list','umfrage'])) $displayMode = 'cloud';
 
 adminHead('Einstellungen');
 adminNav('/admin/settings.php');
@@ -167,13 +167,22 @@ echo renderFlash();
                         <strong>Wolke</strong> – Symbole spiralförmig, Größe nach Stimmenzahl, zentriert
                     </label>
                 </div>
-                <div class="form-check">
+                <div class="form-check mb-3">
                     <input class="form-check-input" type="radio" name="display_mode"
                            id="modeList" value="list"
                            <?= $displayMode === 'list' ? 'checked' : '' ?>>
                     <label class="form-check-label" for="modeList">
                         <i class="bi bi-bar-chart-fill text-indigo me-1"></i>
                         <strong>Reihe</strong> – Symbole von groß nach klein, nebeneinander angeordnet
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="display_mode"
+                           id="modeUmfrage" value="umfrage"
+                           <?= $displayMode === 'umfrage' ? 'checked' : '' ?>>
+                    <label class="form-check-label" for="modeUmfrage">
+                        <i class="bi bi-list-ol text-indigo me-1"></i>
+                        <strong>Umfrage</strong> – Rangliste mit Platznummer &amp; Stimmenzahl je Zeile
                     </label>
                 </div>
             </div>
