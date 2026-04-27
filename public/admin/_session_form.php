@@ -2,9 +2,6 @@
 // Shared form partial for create.php and edit.php
 // Requires: $session array with 'title', 'mode', 'predefined_symbols', 'display_mode', 'max_symbols'
 // Requires: $existingJs (JSON-encoded symbol array for JS)
-$effMax = ($session['max_symbols'] ?? 0) > 0
-    ? min((int)$session['max_symbols'], WordCloudManager::MAX_SYMBOLS_ABS)
-    : WordCloudManager::MAX_SYMBOLS_ABS;
 ?>
 <div class="row g-4">
 
@@ -74,16 +71,15 @@ $effMax = ($session['max_symbols'] ?? 0) > 0
                 </div>
 
                 <div class="mt-3">
-                    <label class="form-label fw-semibold" for="maxSymbolsInput">Max. Optionen</label>
+                    <label class="form-label fw-semibold" for="maxSymbolsInput">Max. Auswahlmöglichkeiten</label>
                     <div class="input-group" style="max-width:220px;">
                         <input type="number" name="max_symbols" id="maxSymbolsInput"
                                class="form-control" min="0" max="<?= WordCloudManager::MAX_SYMBOLS_ABS ?>"
-                               value="<?= (int)($session['max_symbols'] ?? 0) ?>"
-                               oninput="updateMaxSym(this.value)">
-                        <span class="input-group-text">Symbole</span>
+                               value="<?= (int)($session['max_symbols'] ?? 0) ?>">
+                        <span class="input-group-text">pro Teilnehmer</span>
                     </div>
                     <div class="text-muted small mt-1">
-                        0 = unbegrenzt (bis zu <?= WordCloudManager::MAX_SYMBOLS_ABS ?>)
+                        0 = kein Limit · Teilnehmer können max. N Symbole auswählen
                     </div>
                 </div>
             </div>
@@ -95,7 +91,7 @@ $effMax = ($session['max_symbols'] ?? 0) > 0
         <div class="card border-0 shadow-sm">
             <div class="card-header d-flex justify-content-between align-items-center fw-semibold bg-white">
                 <span><i class="bi bi-images me-2 text-primary"></i>Symbole festlegen</span>
-                <span class="badge bg-secondary" id="symCount">0 / <?= $effMax ?></span>
+                <span class="badge bg-secondary" id="symCount">0 / <?= WordCloudManager::MAX_SYMBOLS_ABS ?></span>
             </div>
             <div class="card-body">
 
@@ -150,15 +146,3 @@ $effMax = ($session['max_symbols'] ?? 0) > 0
         </div>
     </div>
 </div>
-
-<script>
-function updateMaxSym(val) {
-    const abs = <?= WordCloudManager::MAX_SYMBOLS_ABS ?>;
-    let n = parseInt(val) || 0;
-    if (n < 0) n = 0;
-    if (n > abs) n = abs;
-    window._maxSym = n > 0 ? n : abs;
-    document.getElementById('symCount').textContent = symbols.length + ' / ' + window._maxSym;
-}
-window._maxSym = <?= $effMax ?>;
-</script>

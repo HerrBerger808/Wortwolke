@@ -35,7 +35,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $session['max_symbols']  = max(0, min(WordCloudManager::MAX_SYMBOLS_ABS, (int)($_POST['max_symbols'] ?? 0)));
     if (!in_array($session['mode'], ['symbols','search','both'])) $session['mode'] = 'both';
 
-    $effMax  = $session['max_symbols'] > 0 ? $session['max_symbols'] : WordCloudManager::MAX_SYMBOLS_ABS;
     $symbols = [];
     if ($session['mode'] !== 'search') {
         $ids       = $_POST['symbol_id']        ?? [];
@@ -52,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 $symbols[] = $sym;
             }
-            if (count($symbols) >= $effMax) break;
+            if (count($symbols) >= WordCloudManager::MAX_SYMBOLS_ABS) break;
         }
         $session['predefined_symbols'] = $symbols;
     }

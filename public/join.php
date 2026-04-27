@@ -152,6 +152,13 @@ $presetsJson = $session
                         color: #374151; min-width: 52px; flex-shrink: 0; line-height: 1.1; }
         .survey-votes-lbl { display: block; font-size: 10px; font-weight: 400; color: #9ca3af; }
 
+        /* ---- Limit erreicht: inaktive Symbole ---- */
+        .sym-card.vote-disabled  { opacity: .4; cursor: not-allowed; }
+        .sym-card.vote-disabled:hover  { transform: none; border-color: #e5e7eb;
+                                          box-shadow: 0 2px 8px rgba(0,0,0,.07); background: #fff; }
+        .survey-row.vote-disabled       { opacity: .4; cursor: not-allowed; }
+        .survey-row.vote-disabled:hover { border-color: #e5e7eb; background: #fff; }
+
         /* ---- Wolken-Bereich ---- */
         .cloud-area {
             flex: 1 1 auto; overflow: hidden;
@@ -499,6 +506,7 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
     const PRESETS      = <?= $presetsJson ?>;
     const POLL_MS      = <?= defined('POLL_MS') ? (int)POLL_MS : 3000 ?>;
     const DISPLAY_MODE = <?= json_encode($displayMode) ?>;
+    const MAX_VOTES    = <?= (int)($session['max_symbols'] ?? 0) ?>;
 
     let currentZoom = 1.0;
 
@@ -615,6 +623,9 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 
     /* ---- Abstimmen ---- */
     function toggleVote(arasaacId, label) {
+        if (MAX_VOTES > 0 && !myVotes.has(arasaacId) && myVotes.size >= MAX_VOTES) {
+            return; // Limit erreicht – Server würde es ebenfalls ablehnen
+        }
         fetch('/api/vote.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -896,23 +907,36 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
     }
 
     function updateVoteUI() {
+        const atLimit = MAX_VOTES > 0 && myVotes.size >= MAX_VOTES;
+
         // Preset-Karten
         PRESETS.forEach(p => {
             const card = document.getElementById('p' + p.id);
-            if (card) card.classList.toggle('voted', myVotes.has(p.id));
+            if (!card) return;
+            card.classList.toggle('voted',        myVotes.has(p.id));
+            card.classList.toggle('vote-disabled', atLimit && !myVotes.has(p.id));
         });
-        // Cloud-Karten
+        // Cloud/Umfrage-Karten
         document.querySelectorAll('[id^="c"]').forEach(card => {
             const aid = +card.dataset.aid;
-            if (aid) card.classList.toggle('voted', myVotes.has(aid));
+            if (!aid) return;
+            card.classList.toggle('voted',        myVotes.has(aid));
+            card.classList.toggle('vote-disabled', atLimit && !myVotes.has(aid));
         });
 
-        const n   = myVotes.size;
-        const el  = document.getElementById('myVotesInfo');
-        if (el) el.textContent = n === 0
-            ? 'Noch keine Stimme – klicke auf ein Symbol.'
-            : n === 1 ? '1 Symbol gewählt · Nochmals klicken = zurückziehen.'
-                      : n + ' Symbole gewählt · Nochmals klicken = zurückziehen.';
+        const n  = myVotes.size;
+        const el = document.getElementById('myVotesInfo');
+        if (el) {
+            let txt = n === 0 ? 'Noch keine Stimme – klicke auf ein Symbol.'
+                    : n === 1 ? '1 Symbol gewählt · Nochmals klicken = zurückziehen.'
+                               : n + ' Symbole gewählt · Nochmals klicken = zurückziehen.';
+            if (MAX_VOTES > 0) {
+                txt += atLimit
+                    ? ' · Limit erreicht (' + MAX_VOTES + '/' + MAX_VOTES + ').'
+                    : ' · Noch ' + (MAX_VOTES - n) + ' von ' + MAX_VOTES + ' möglich.';
+            }
+            el.textContent = txt;
+        }
     }
 
     function updateLive(n) {
