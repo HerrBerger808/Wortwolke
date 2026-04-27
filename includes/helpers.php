@@ -58,6 +58,19 @@ function appTitle(): string
     return defined('APP_TITLE') ? APP_TITLE : 'ARASAAC Wortwolke';
 }
 
+/** Impressum-Link (leer wenn keine URL konfiguriert) */
+function impressumLink(string $style = 'color:#9ca3af;font-size:11px;text-decoration:none;'): string
+{
+    try {
+        $url = (new WordCloudManager())->getSetting('impressum_url', '');
+    } catch (\Throwable $e) {
+        return '';
+    }
+    if (!filter_var($url, FILTER_VALIDATE_URL)) return '';
+    return '<a href="' . htmlspecialchars($url) . '" target="_blank" rel="noopener noreferrer"'
+         . ($style ? ' style="' . htmlspecialchars($style) . '"' : '') . '>Impressum</a>';
+}
+
 /** JSON-Response ausgeben und beenden */
 function jsonResponse(array $data, int $code = 200): never
 {

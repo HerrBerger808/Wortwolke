@@ -113,6 +113,7 @@ adminNav('');
     </div>
 </form>
 
+<script>const SESSION_EDIT_ID = <?= $id ?>;</script>
 <?php
 require __DIR__ . '/_session_form_js.php';
 adminFoot();
