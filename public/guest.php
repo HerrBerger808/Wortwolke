@@ -17,9 +17,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $guestEnabled) {
     if (!$csrf || !hash_equals($_SESSION['guest_csrf'] ?? '', $csrf)) {
         $errors[] = 'Sicherheitsfehler – bitte Seite neu laden.';
     } else {
-        $title = trim($_POST['title'] ?? '');
-        $mode  = $_POST['mode'] ?? 'both';
+        $title      = trim($_POST['title'] ?? '');
+        $mode       = $_POST['mode'] ?? 'both';
+        $displayMode = $_POST['display_mode'] ?? 'cloud';
+        $maxSymbols  = max(0, (int)($_POST['max_symbols'] ?? 0));
         if (!in_array($mode, ['symbols', 'search', 'both'])) $mode = 'both';
+        if (!in_array($displayMode, ['cloud', 'list', 'umfrage'])) $displayMode = 'cloud';
 
         $symbols = [];
         if ($mode !== 'search') {
@@ -31,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $guestEnabled) {
                 if ($id > 0 && $label !== '') {
                     $symbols[] = ['arasaac_id' => $id, 'label' => $label];
                 }
-                if (count($symbols) >= WordCloudManager::MAX_SYMBOLS) break;
+                if (count($symbols) >= WordCloudManager::MAX_SYMBOLS_ABS) break;
             }
         }
 
@@ -47,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $guestEnabled) {
         }
 
         if (empty($errors)) {
-            $result  = $mgr->createGuestSession($title, $mode, $symbols, $guestHours);
+            $result  = $mgr->createGuestSession($title, $mode, $symbols, $guestHours, $displayMode, $maxSymbols);
             $created = $result;
         }
     }
@@ -199,9 +202,13 @@ $baseUrl = 'https://' . $host;
 
         <?php
         // Formular-Partials wiederverwenden
+        $defaultDm = $mgr->getSetting('cloud_display_mode', 'cloud');
+        if (!in_array($defaultDm, ['cloud','list','umfrage'])) $defaultDm = 'cloud';
         $session = [
             'title'              => trim($_POST['title'] ?? ''),
             'mode'               => $_POST['mode'] ?? 'both',
+            'display_mode'       => $_POST['display_mode'] ?? $defaultDm,
+            'max_symbols'        => max(0, (int)($_POST['max_symbols'] ?? 0)),
             'predefined_symbols' => [],
         ];
         include __DIR__ . '/admin/_session_form.php';

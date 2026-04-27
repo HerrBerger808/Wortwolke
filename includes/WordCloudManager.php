@@ -71,20 +71,18 @@ class WordCloudManager
         return ['id' => (int) $this->db->lastInsertId(), 'code' => $code];
     }
 
-    public function createGuestSession(string $title, string $mode, array $symbols, int $hours): array
+    public function createGuestSession(string $title, string $mode, array $symbols, int $hours, string $displayMode = 'cloud', int $maxSymbols = 0): array
     {
-        $symbols = array_slice($symbols, 0, self::MAX_SYMBOLS_ABS);
-        $code    = $this->generateCode();
-        $token   = bin2hex(random_bytes(32));
-        $expires = date('Y-m-d H:i:s', time() + max(1, $hours) * 3600);
-
-        $dm  = $this->getSetting('cloud_display_mode', 'cloud');
-        if (!in_array($dm, ['cloud','list','umfrage'])) $dm = 'cloud';
+        $symbols     = array_slice($symbols, 0, self::MAX_SYMBOLS_ABS);
+        $code        = $this->generateCode();
+        $token       = bin2hex(random_bytes(32));
+        $expires     = date('Y-m-d H:i:s', time() + max(1, $hours) * 3600);
+        $displayMode = in_array($displayMode, ['cloud','list','umfrage']) ? $displayMode : 'cloud';
 
         $stmt = $this->db->prepare(
             "INSERT INTO wordcloud_sessions
                 (session_code, title, mode, predefined_symbols, is_guest, guest_admin_token, expires_at, display_mode, max_symbols)
-             VALUES (:code, :title, :mode, :sym, 1, :tok, :exp, :dm, 0)"
+             VALUES (:code, :title, :mode, :sym, 1, :tok, :exp, :dm, :ms)"
         );
         $stmt->execute([
             ':code'  => $code,
@@ -93,7 +91,8 @@ class WordCloudManager
             ':sym'   => empty($symbols) ? null : json_encode($symbols, JSON_UNESCAPED_UNICODE),
             ':tok'   => $token,
             ':exp'   => $expires,
-            ':dm'    => $dm,
+            ':dm'    => $displayMode,
+            ':ms'    => max(0, $maxSymbols),
         ]);
 
         return ['id' => (int) $this->db->lastInsertId(), 'code' => $code, 'token' => $token];
