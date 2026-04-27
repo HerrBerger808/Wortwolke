@@ -112,9 +112,19 @@ function addSymbol(sym) {
 }
 
 function removeSymbol(id) {
+    const sym = symbols.find(s => s.id === id);
     symbols = symbols.filter(s => s.id !== id);
     renderSymbols();
     refreshResultsUsed();
+    if (sym && id < 0 && sym.image_url) {
+        const csrf = document.querySelector('input[name="csrf_token"]')?.value || '';
+        const sid  = typeof SESSION_EDIT_ID !== 'undefined' ? SESSION_EDIT_ID : 0;
+        fetch('/api/remove_upload.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image_url: sym.image_url, session_id: sid, csrf_token: csrf }),
+        }).catch(() => {});
+    }
 }
 
 function renderSymbols() {

@@ -11,6 +11,8 @@ $mode     = $session['mode']   ?? '';
 $isClosed = $session           && $session['status'] === 'closed';
 $isActive = $session           && $session['status'] === 'active';
 
+$impressumLink = impressumLink('color:#9ca3af;font-size:11px;text-decoration:none;');
+
 $displayMode = 'cloud';
 if ($session) {
     $dm = $session['display_mode'] ?? 'cloud';
@@ -240,6 +242,9 @@ $presetsJson = $session
         <button type="submit" class="btn btn-primary btn-lg">Öffnen</button>
     </form>
     <a href="/" class="text-muted small mt-3">← Zurück</a>
+    <?php if ($impressumLink): ?>
+    <div style="margin-top:24px;"><?= $impressumLink ?></div>
+    <?php endif; ?>
 </div>
 
 <?php elseif ($isClosed): ?>
@@ -263,6 +268,7 @@ $presetsJson = $session
                 style="background:none;border:none;font-size:12px;color:#9ca3af;cursor:pointer;">
             © ARASAAC – Lizenz &amp; Symbole
         </button>
+        <?= $impressumLink ?>
     </div>
 </div>
 
@@ -517,6 +523,7 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
                 title="ARASAAC-Symbole – Lizenzinfo anzeigen">
             © ARASAAC
         </button>
+        <?= $impressumLink ?>
     </div>
 </div>
 

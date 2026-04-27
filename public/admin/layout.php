@@ -73,8 +73,9 @@ function adminNav(string $currentPath = ''): void
 
 function adminFoot(): void
 {
-    echo '</div><!-- /admin-content -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>';
+    $imp = impressumLink('color:#6b7280;font-size:11px;text-decoration:none;');
+    echo '</div><!-- /admin-content -->'
+       . ($imp ? '<footer style="text-align:center;padding:10px 20px;font-size:11px;color:#9ca3af;border-top:1px solid #e5e7eb;">' . $imp . '</footer>' : '')
+       . '<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>'
+       . '</body></html>';
 }

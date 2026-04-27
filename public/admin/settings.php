@@ -19,12 +19,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $retTotalHours  = $retDays * 24 + $retHours;
     $guestMaxActive = max(0, (int) ($_POST['guest_max_active'] ?? 0));
     $displayMode    = in_array($_POST['display_mode'] ?? '', ['cloud','list','umfrage']) ? $_POST['display_mode'] : 'cloud';
+    $impressumUrl   = trim($_POST['impressum_url'] ?? '');
+    if ($impressumUrl && !filter_var($impressumUrl, FILTER_VALIDATE_URL)) $impressumUrl = '';
 
     $mgr->setSetting('guest_sessions_enabled',  $guestEnabled);
     $mgr->setSetting('guest_session_hours',     (string) $totalHours);
     $mgr->setSetting('guest_retention_hours',   (string) $retTotalHours);
     $mgr->setSetting('guest_max_active',        (string) $guestMaxActive);
     $mgr->setSetting('cloud_display_mode',      $displayMode);
+    $mgr->setSetting('impressum_url',           $impressumUrl);
     $saved = true;
 }
 
@@ -38,6 +41,7 @@ $currentRetHours = $retTotalHours % 24;
 $guestMaxActive  = max(0, (int) $mgr->getSetting('guest_max_active', '0'));
 $displayMode     = $mgr->getSetting('cloud_display_mode', 'cloud');
 if (!in_array($displayMode, ['cloud','list','umfrage'])) $displayMode = 'cloud';
+$impressumUrl    = $mgr->getSetting('impressum_url', '');
 
 adminHead('Einstellungen');
 adminNav('/admin/settings.php');
@@ -184,6 +188,25 @@ echo renderFlash();
                         <i class="bi bi-list-ol text-indigo me-1"></i>
                         <strong>Umfrage</strong> – Rangliste mit Platznummer &amp; Stimmenzahl je Zeile
                     </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Impressum -->
+    <div class="col-12 col-lg-7">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header fw-semibold bg-white">
+                <i class="bi bi-file-earmark-text me-2 text-secondary"></i>Rechtliches
+            </div>
+            <div class="card-body">
+                <label class="form-label fw-semibold" for="impressumUrl">Impressum-URL</label>
+                <input type="url" name="impressum_url" id="impressumUrl"
+                       class="form-control" placeholder="https://beispiel.de/impressum"
+                       value="<?= e($impressumUrl) ?>">
+                <div class="text-muted small mt-1">
+                    Wenn gesetzt, erscheint auf allen Seiten ein kleiner „Impressum"-Link.
+                    Leer lassen, um den Link auszublenden.
                 </div>
             </div>
         </div>

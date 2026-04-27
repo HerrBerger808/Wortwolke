@@ -380,6 +380,14 @@ class WordCloudManager
         return (int) $stmt->fetchColumn();
     }
 
+    public function deleteUploadedImage(string $imageUrl, int $excludeSessionId = 0): bool
+    {
+        if (!preg_match('#^/uploads/img_[a-f0-9_.]+\.(jpg|png|gif|webp)$#', $imageUrl)) return false;
+        if ($this->isImageUsedInAnySession($imageUrl, $excludeSessionId)) return false;
+        $this->deleteImageFile($imageUrl);
+        return true;
+    }
+
     // =========================================================
     // ARASAAC-API
     // =========================================================
