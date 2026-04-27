@@ -50,8 +50,7 @@ class WordCloudManager
 
     public function createSession(string $title, string $mode, array $symbols, ?int $createdBy = null, string $displayMode = 'cloud', int $maxSymbols = 0): array
     {
-        $limit       = $maxSymbols > 0 ? min($maxSymbols, self::MAX_SYMBOLS_ABS) : self::MAX_SYMBOLS_ABS;
-        $symbols     = array_slice($symbols, 0, $limit);
+        $symbols     = array_slice($symbols, 0, self::MAX_SYMBOLS_ABS);
         $code        = $this->generateCode();
         $displayMode = in_array($displayMode, ['cloud','list','umfrage']) ? $displayMode : 'cloud';
 
@@ -102,8 +101,7 @@ class WordCloudManager
         $old       = $this->getSession($id);
         $oldImages = $old ? $this->extractCustomImageUrls($old['predefined_symbols']) : [];
 
-        $limit       = $maxSymbols > 0 ? min($maxSymbols, self::MAX_SYMBOLS_ABS) : self::MAX_SYMBOLS_ABS;
-        $symbols     = array_slice($symbols, 0, $limit);
+        $symbols     = array_slice($symbols, 0, self::MAX_SYMBOLS_ABS);
         $displayMode = in_array($displayMode, ['cloud','list','umfrage']) ? $displayMode : 'cloud';
         $stmt        = $this->db->prepare(
             "UPDATE wordcloud_sessions
@@ -297,7 +295,7 @@ class WordCloudManager
     public function toggleVote(int $sessionId, string $token, int $arasaacId, string $label): array
     {
         $stmt = $this->db->prepare(
-            "SELECT status FROM wordcloud_sessions WHERE id = :id"
+            "SELECT status, max_symbols FROM wordcloud_sessions WHERE id = :id"
         );
         $stmt->execute([':id' => $sessionId]);
         $session = $stmt->fetch();
@@ -321,6 +319,19 @@ class WordCloudManager
                  WHERE session_id = :sid AND participant_token = :tok AND arasaac_id = :aid"
             )->execute([':sid' => $sessionId, ':tok' => $token, ':aid' => $arasaacId]);
             return ['success' => true, 'voted' => false];
+        }
+
+        // Limit pro Teilnehmer prüfen
+        $maxVotes = (int)($session['max_symbols'] ?? 0);
+        if ($maxVotes > 0) {
+            $cnt = $this->db->prepare(
+                "SELECT COUNT(*) FROM wordcloud_votes WHERE session_id = :sid AND participant_token = :tok"
+            );
+            $cnt->execute([':sid' => $sessionId, ':tok' => $token]);
+            if ((int)$cnt->fetchColumn() >= $maxVotes) {
+                return ['success' => false, 'voted' => false,
+                        'error' => 'Limit: maximal ' . $maxVotes . ' Auswahl' . ($maxVotes !== 1 ? 'en' : '')];
+            }
         }
 
         $this->db->prepare(

@@ -3,8 +3,8 @@
 // Benötigt $existingJs (JSON-Array der vorhandenen Symbole)
 ?>
 <script>
-// getMax() is dynamic; window._maxSym is set by _session_form.php and updated via updateMaxSym()
-function getMax() { return window._maxSym || <?= WordCloudManager::MAX_SYMBOLS_ABS ?>; }
+const MAX_SYM = <?= WordCloudManager::MAX_SYMBOLS_ABS ?>;
+function getMax() { return MAX_SYM; }
 let symbols   = <?= $existingJs ?? '[]' ?>;
 let searchTimer = null;
 
