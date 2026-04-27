@@ -11,6 +11,12 @@ $mode     = $session['mode']   ?? '';
 $isClosed = $session           && $session['status'] === 'closed';
 $isActive = $session           && $session['status'] === 'active';
 
+$displayMode = 'cloud';
+if ($session) {
+    $dm = $session['display_mode'] ?? 'cloud';
+    $displayMode = in_array($dm, ['cloud', 'list', 'umfrage']) ? $dm : 'cloud';
+}
+
 // Presets als JSON für JS (image_url für eigene Bilder mitgeben)
 $presetsJson = $session
     ? json_encode(
@@ -117,16 +123,47 @@ $presetsJson = $session
         .sym-card.voted .sym-lbl { color: #4f46e5; font-weight: 600; }
         .sym-votes { font-size: 11px; color: #9ca3af; margin-top: 2px; }
 
+        /* ---- Umfrage-Darstellung ---- */
+        .survey-row {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 14px; margin-bottom: 8px;
+            background: #fff; border-radius: 12px; border: 2px solid #e5e7eb;
+            cursor: pointer; user-select: none;
+            transition: border-color .2s, background .2s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .survey-row:hover  { border-color: #a5b4fc; background: #f5f3ff; }
+        .survey-row:active { transform: scale(.99); }
+        .survey-row.voted  { border-color: #4f46e5; background: #ede9fe; }
+        .survey-rank { font-size: 1.5rem; font-weight: 800; min-width: 44px;
+                       text-align: center; color: #6b7280; flex-shrink: 0; }
+        .survey-rank.top1 { color: #d97706; }
+        .survey-rank.top2 { color: #9ca3af; }
+        .survey-rank.top3 { color: #92400e; }
+        .survey-img  { width: 54px; height: 54px; object-fit: contain; flex-shrink: 0; }
+        .survey-info { flex: 1; min-width: 0; }
+        .survey-label { font-weight: 600; font-size: .95rem; color: #374151; margin-bottom: 5px;
+                        overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .survey-row.voted .survey-label { color: #4f46e5; }
+        .survey-bar-wrap { background: #e5e7eb; border-radius: 4px; height: 10px; }
+        .survey-bar { background: #4f46e5; border-radius: 4px; height: 10px;
+                      transition: width .6s ease; min-width: 4px; }
+        .survey-votes { text-align: right; font-size: 1.3rem; font-weight: 700;
+                        color: #374151; min-width: 52px; flex-shrink: 0; line-height: 1.1; }
+        .survey-votes-lbl { display: block; font-size: 10px; font-weight: 400; color: #9ca3af; }
+
         /* ---- Wolken-Bereich ---- */
         .cloud-area {
-            flex: 1 1 auto; overflow-y: auto;
-            padding: 20px;
+            flex: 1 1 auto; overflow: hidden;
             position: relative;
-            min-height: 300px;
+        }
+        #cloudCanvas {
+            position: absolute; left: 0; top: 0;
+            transform-origin: 0 0;
         }
         .cloud-empty { text-align: center; color: #9ca3af;
                        position: absolute; top: 50%; left: 50%;
-                       transform: translate(-50%,-50%); width: 80%; }
+                       transform: translate(-50%,-50%); width: 80%; pointer-events: none; }
         .cloud-empty i { font-size: 3.5rem; display: block; margin-bottom: 10px; }
 
         /* ---- Status-Footer ---- */
@@ -178,15 +215,51 @@ $presetsJson = $session
     <i class="bi bi-trophy-fill text-warning"></i>
     <h4 class="fw-bold">Sitzung beendet – Ergebnis</h4>
     <div id="finalCloud" class="d-flex flex-wrap gap-3 justify-content-center mt-3" style="max-width:700px;"></div>
+    <div class="d-flex gap-3 mt-4 align-items-center flex-wrap justify-content-center">
+        <button id="exportPngClosed" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-download me-1"></i>PNG exportieren
+        </button>
+        <button onclick="document.getElementById('arasaacModalClosed').style.display='flex'"
+                style="background:none;border:none;font-size:12px;color:#9ca3af;cursor:pointer;">
+            © ARASAAC – Lizenz &amp; Symbole
+        </button>
+    </div>
 </div>
+
+<!-- ARASAAC-Modal (geschlossene Sitzung) -->
+<div id="arasaacModalClosed" style="
+        display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1001;
+        align-items:center;justify-content:center;"
+     onclick="this.style.display='none'">
+    <div style="background:#fff;border-radius:16px;padding:28px;max-width:560px;width:92%;
+                max-height:85vh;overflow-y:auto;"
+         onclick="event.stopPropagation()">
+        <h5 style="font-weight:700;margin-bottom:4px;">
+            <i class="bi bi-info-circle-fill text-primary me-2"></i>ARASAAC-Symbole
+        </h5>
+        <p style="font-size:13px;color:#6b7280;margin-bottom:16px;">
+            Piktogramme von <a href="https://arasaac.org" target="_blank" rel="noopener">ARASAAC</a>
+            unter <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">CC BY-NC-SA 4.0</a>.
+            Autor: Sergio Palao · © Government of Aragón (Spain)
+        </p>
+        <div id="arasaacClosedList" style="display:flex;flex-wrap:wrap;gap:12px;"></div>
+        <button onclick="document.getElementById('arasaacModalClosed').style.display='none'"
+                style="margin-top:20px;background:#f3f4f6;border:none;border-radius:8px;
+                       padding:8px 20px;cursor:pointer;">Schließen</button>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script>
+let closedItems = [];
 fetch('/api/data.php?session_id=<?= (int)$session['id'] ?>')
     .then(r => r.json())
     .then(data => {
+        closedItems = data.items || [];
         const c = document.getElementById('finalCloud');
-        if (!data.items?.length) { c.innerHTML = '<p class="text-muted">Keine Stimmen vorhanden.</p>'; return; }
-        const mx = Math.max(...data.items.map(i => +i.vote_count), 1);
-        data.items.forEach(item => {
+        if (!closedItems.length) { c.innerHTML = '<p class="text-muted">Keine Stimmen vorhanden.</p>'; return; }
+        const mx = Math.max(...closedItems.map(i => +i.vote_count), 1);
+        closedItems.forEach(item => {
             const sz     = calcSize(item.vote_count, mx);
             const imgSrc = item.image_url
                 || `https://static.arasaac.org/pictograms/${item.arasaac_id}/${item.arasaac_id}_300.png`;
@@ -199,6 +272,35 @@ fetch('/api/data.php?session_id=<?= (int)$session['id'] ?>')
             c.appendChild(d);
         });
     });
+
+document.getElementById('exportPngClosed').addEventListener('click', function() {
+    const area = document.getElementById('finalCloud');
+    html2canvas(area, { backgroundColor: '#ffffff', useCORS: true }).then(canvas => {
+        const a = document.createElement('a');
+        a.href = canvas.toDataURL('image/png');
+        a.download = 'ergebnis.png';
+        a.click();
+    });
+});
+
+document.querySelector('[onclick*="arasaacModalClosed"]').addEventListener('click', function() {
+    const list = document.getElementById('arasaacClosedList');
+    list.innerHTML = '';
+    const seen = new Set();
+    closedItems.forEach(item => {
+        const aid = +item.arasaac_id;
+        if (aid <= 0 || seen.has(aid)) return;
+        seen.add(aid);
+        const d = document.createElement('div');
+        d.style.cssText = 'display:flex;flex-direction:column;align-items:center;width:72px;text-align:center;';
+        d.innerHTML = `<img src="https://static.arasaac.org/pictograms/${aid}/${aid}_300.png"
+            style="width:52px;height:52px;object-fit:contain;" loading="lazy" alt="">
+            <span style="font-size:10px;color:#374151;margin-top:4px;word-break:break-word;">${esc(item.label)}</span>`;
+        list.appendChild(d);
+    });
+    if (!seen.size) list.innerHTML = '<p style="color:#9ca3af;font-size:13px;">Keine ARASAAC-Symbole.</p>';
+});
+
 function calcSize(v,mx){ const r=mx>0?v/mx:0; return {img:Math.round(60+r*80),font:Math.round(11+r*7)}; }
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 </script>
@@ -324,12 +426,66 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
             } ?>
         </p>
     </div>
+    <div id="cloudCanvas"></div>
 </div>
 
 <!-- Statuszeile -->
 <div class="statusbar">
     <span id="myVotesInfo">Noch keine Stimme abgegeben.</span>
-    <span id="lastUpdate" class="text-muted"></span>
+    <div class="d-flex align-items-center gap-3 flex-wrap">
+        <span id="lastUpdate" class="text-muted"></span>
+        <div class="btn-group">
+            <button id="zoomOutBtn" class="btn btn-xs btn-outline-secondary py-0 px-2"
+                    style="font-size:11px;" title="Verkleinern">
+                <i class="bi bi-zoom-out"></i>
+            </button>
+            <button id="zoomFitBtn" class="btn btn-xs btn-outline-secondary py-0 px-2"
+                    style="font-size:11px;" title="Einpassen">
+                <i class="bi bi-fullscreen"></i>
+            </button>
+            <button id="zoomInBtn" class="btn btn-xs btn-outline-secondary py-0 px-2"
+                    style="font-size:11px;" title="Vergrößern">
+                <i class="bi bi-zoom-in"></i>
+            </button>
+        </div>
+        <button id="exportPngBtn" class="btn btn-xs btn-outline-secondary py-0 px-2"
+                style="font-size:11px;" title="Wolke als PNG speichern">
+            <i class="bi bi-download me-1"></i>PNG
+        </button>
+        <button onclick="document.getElementById('arasaacModal').style.display='flex'"
+                style="background:none;border:none;padding:0;font-size:11px;color:#9ca3af;cursor:pointer;"
+                title="ARASAAC-Symbole – Lizenzinfo anzeigen">
+            © ARASAAC
+        </button>
+    </div>
+</div>
+
+<!-- ARASAAC-Lizenz-Modal -->
+<div id="arasaacModal" style="
+        display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1001;
+        align-items:center;justify-content:center;"
+     onclick="this.style.display='none'">
+    <div style="background:#fff;border-radius:16px;padding:28px;max-width:560px;width:92%;
+                max-height:85vh;overflow-y:auto;"
+         onclick="event.stopPropagation()">
+        <h5 style="font-weight:700;margin-bottom:4px;">
+            <i class="bi bi-info-circle-fill text-primary me-2"></i>ARASAAC-Symbole
+        </h5>
+        <p style="font-size:13px;color:#6b7280;margin-bottom:16px;">
+            Die Piktogramme stammen von
+            <a href="https://arasaac.org" target="_blank" rel="noopener">ARASAAC</a>
+            (Aragonese Portal of Augmentative and Alternative Communication) und werden unter der Lizenz
+            <a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" target="_blank" rel="noopener">
+                CC BY-NC-SA 4.0</a> bereitgestellt.<br>
+            Autor: Sergio Palao · © Government of Aragón (Spain)
+        </p>
+        <div id="arasaacSymbolList" style="display:flex;flex-wrap:wrap;gap:12px;"></div>
+        <button onclick="document.getElementById('arasaacModal').style.display='none'"
+                style="margin-top:20px;background:#f3f4f6;border:none;border-radius:8px;
+                       padding:8px 20px;cursor:pointer;font-size:14px;">
+            Schließen
+        </button>
+    </div>
 </div>
 
 <!-- Konfiguration & Runtime-JS -->
@@ -337,11 +493,56 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 (function() {
     'use strict';
 
-    const SESSION_ID = <?= (int)$session['id'] ?>;
-    const MODE       = <?= json_encode($mode) ?>;
-    const CDN        = 'https://static.arasaac.org/pictograms';
-    const PRESETS    = <?= $presetsJson ?>;
-    const POLL_MS    = <?= defined('POLL_MS') ? (int)POLL_MS : 3000 ?>;
+    const SESSION_ID   = <?= (int)$session['id'] ?>;
+    const MODE         = <?= json_encode($mode) ?>;
+    const CDN          = 'https://static.arasaac.org/pictograms';
+    const PRESETS      = <?= $presetsJson ?>;
+    const POLL_MS      = <?= defined('POLL_MS') ? (int)POLL_MS : 3000 ?>;
+    const DISPLAY_MODE = <?= json_encode($displayMode) ?>;
+
+    let currentZoom = 1.0;
+
+    function autoFit() {
+        const area   = document.getElementById('cloudArea');
+        const canvas = document.getElementById('cloudCanvas');
+        if (!canvas) return;
+        const areaW = area.clientWidth  || 600;
+        const areaH = area.clientHeight || 400;
+
+        if (DISPLAY_MODE === 'list' || DISPLAY_MODE === 'umfrage') {
+            const cntW = canvas.offsetWidth  || areaW;
+            const cntH = canvas.offsetHeight || areaH;
+            if (!cntH) return;
+            const base  = Math.min(areaW / (cntW + 4), areaH / (cntH + 4));
+            const scale = Math.max(0.15, Math.min(base * currentZoom, 4));
+            const tx    = Math.round((areaW - cntW * scale) / 2);
+            const ty    = Math.round((areaH - cntH * scale) / 2);
+            canvas.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+            return;
+        }
+
+        // Cloud-Modus
+        if (!cloudLayout.size) return;
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        cloudLayout.forEach((pos, aid) => {
+            const c = document.getElementById('c' + aid);
+            if (!c) return;
+            minX = Math.min(minX, pos.x);
+            minY = Math.min(minY, pos.y);
+            maxX = Math.max(maxX, pos.x + (c.offsetWidth  || 100));
+            maxY = Math.max(maxY, pos.y + (c.offsetHeight || 120));
+        });
+        if (!isFinite(minX)) return;
+
+        const PAD   = 16;
+        const cntW  = (maxX - minX) + 2 * PAD;
+        const cntH  = (maxY - minY) + 2 * PAD;
+        const base  = Math.min(areaW / cntW, areaH / cntH);
+        const scale = Math.max(0.15, Math.min(base * currentZoom, 4));
+        const tx    = Math.round(areaW / 2 - (maxX + minX) / 2 * scale);
+        const ty    = Math.round(areaH / 2 - (maxY + minY) / 2 * scale);
+        canvas.style.transform = `translate(${tx}px,${ty}px) scale(${scale})`;
+    }
 
     // Mapping eigener Bild-IDs (negativ) → URL
     const imageUrlMap = {};
@@ -436,7 +637,8 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
             .then(data => {
                 if (data.status === 'closed') { location.reload(); return; }
                 myVotes = new Set((data.my_votes || []).map(Number));
-                renderCloud(data.items || []);
+                lastCloudItems = data.items || [];
+                renderCloud(lastCloudItems);
                 updateVoteUI();
                 updateLive(data.participants || 0);
                 const el = document.getElementById('lastUpdate');
@@ -448,10 +650,107 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
     /* ---- Positionen persistent (neu platzieren nur bei neuen Karten) ---- */
     const cloudLayout = new Map();
 
-    /* ---- Cloud rendern ---- */
+    /* ---- Reihen-Darstellung (von groß nach klein) ---- */
+    function renderList(items) {
+        const area   = document.getElementById('cloudArea');
+        const canvas = document.getElementById('cloudCanvas');
+        const empty  = document.getElementById('cloudEmpty');
+
+        if (!items.length) {
+            empty.classList.remove('d-none');
+            canvas.innerHTML = '';
+            canvas.style.cssText = 'position:absolute;left:0;top:0;transform-origin:0 0;';
+            return;
+        }
+        empty.classList.add('d-none');
+
+        const areaW = area.clientWidth || 600;
+        canvas.style.cssText =
+            `position:absolute;left:0;top:0;transform-origin:0 0;width:${areaW}px;` +
+            `display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:center;` +
+            `gap:10px;padding:16px;box-sizing:border-box;`;
+
+        const mx     = Math.max(...items.map(i => +i.vote_count), 1);
+        const sorted = [...items].sort((a, b) => b.vote_count - a.vote_count);
+
+        canvas.innerHTML = '';
+        sorted.forEach(item => {
+            const aid  = +item.arasaac_id;
+            const sz   = calcSize(item.vote_count, mx);
+            const card = document.createElement('div');
+            card.className   = 'sym-card';
+            card.id          = 'c' + aid;
+            card.dataset.aid = String(aid);
+            card.innerHTML   = `
+                <img src="${getImageUrl(aid)}" alt="" loading="lazy"
+                     style="width:${sz.img}px;height:${sz.img}px;object-fit:contain;">
+                <span class="sym-lbl" style="font-size:${sz.font}px;">${esc(item.label)}</span>
+                <span class="sym-votes">${item.vote_count} ×</span>`;
+            card.classList.toggle('voted', myVotes.has(aid));
+            card.addEventListener('click', () => toggleVote(aid, item.label));
+            canvas.appendChild(card);
+        });
+
+        requestAnimationFrame(autoFit);
+    }
+
+    /* ---- Umfrage-Darstellung (Rangliste) ---- */
+    function renderSurvey(items) {
+        const area   = document.getElementById('cloudArea');
+        const canvas = document.getElementById('cloudCanvas');
+        const empty  = document.getElementById('cloudEmpty');
+
+        if (!items.length) {
+            empty.classList.remove('d-none');
+            canvas.innerHTML = '';
+            canvas.style.cssText = 'position:absolute;left:0;top:0;transform-origin:0 0;';
+            return;
+        }
+        empty.classList.add('d-none');
+
+        const areaW  = area.clientWidth || 600;
+        canvas.style.cssText =
+            `position:absolute;left:0;top:0;transform-origin:0 0;width:${areaW}px;` +
+            `padding:12px 16px;box-sizing:border-box;`;
+
+        const mx     = Math.max(...items.map(i => +i.vote_count), 1);
+        const sorted = [...items].sort((a, b) => b.vote_count - a.vote_count);
+        const medals = ['🥇', '🥈', '🥉'];
+
+        canvas.innerHTML = '';
+        sorted.forEach((item, idx) => {
+            const aid   = +item.arasaac_id;
+            const votes = +item.vote_count;
+            const pct   = mx > 0 ? Math.round(votes / mx * 100) : 0;
+            const rank  = idx + 1;
+            const topCls = rank <= 3 ? ' top' + rank : '';
+
+            const row = document.createElement('div');
+            row.id          = 'c' + aid;
+            row.dataset.aid = String(aid);
+            row.className   = 'survey-row' + (myVotes.has(aid) ? ' voted' : '');
+            row.innerHTML   =
+                `<div class="survey-rank${topCls}">${rank <= 3 ? medals[rank - 1] : rank + '.'}</div>` +
+                `<img src="${getImageUrl(aid)}" class="survey-img" alt="" loading="lazy">` +
+                `<div class="survey-info">` +
+                    `<div class="survey-label">${esc(item.label)}</div>` +
+                    `<div class="survey-bar-wrap"><div class="survey-bar" style="width:${pct}%"></div></div>` +
+                `</div>` +
+                `<div class="survey-votes">${votes}<span class="survey-votes-lbl">Stimmen</span></div>`;
+            row.addEventListener('click', () => toggleVote(aid, item.label));
+            canvas.appendChild(row);
+        });
+
+        requestAnimationFrame(autoFit);
+    }
+
+    /* ---- Cloud rendern (Dispatcher) ---- */
     function renderCloud(items) {
-        const area  = document.getElementById('cloudArea');
-        const empty = document.getElementById('cloudEmpty');
+        if (DISPLAY_MODE === 'list')    { renderList(items);   return; }
+        if (DISPLAY_MODE === 'umfrage') { renderSurvey(items); return; }
+        const area   = document.getElementById('cloudArea');
+        const canvas = document.getElementById('cloudCanvas');
+        const empty  = document.getElementById('cloudEmpty');
 
         // Preset-Karten: nur Stimmenzahl aktualisieren, Größe bleibt fest
         if (MODE === 'symbols' || MODE === 'both') {
@@ -469,9 +768,9 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 
         if (!items.length) {
             empty.classList.remove('d-none');
-            area.querySelectorAll('.sym-card').forEach(c => c.remove());
+            canvas.querySelectorAll('.sym-card').forEach(c => c.remove());
             cloudLayout.clear();
-            area.style.height = '';
+            canvas.style.transform = '';
             return;
         }
         empty.classList.add('d-none');
@@ -497,7 +796,7 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
                     <span class="sym-lbl" style="font-size:${sz.font}px;">${esc(item.label)}</span>
                     <span class="sym-votes">${item.vote_count} ×</span>`;
                 card.addEventListener('click', () => toggleVote(aid, item.label));
-                area.appendChild(card);
+                canvas.appendChild(card);
                 newAids.push(aid);
             } else {
                 applySize(card, sz);
@@ -516,7 +815,7 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
         });
 
         // Karten ohne Stimme entfernen
-        area.querySelectorAll('.sym-card').forEach(card => {
+        canvas.querySelectorAll('.sym-card').forEach(card => {
             const aid = +card.dataset.aid;
             if (!items.some(i => +i.arasaac_id === aid)) {
                 card.remove();
@@ -524,15 +823,21 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
             }
         });
 
-        if (newAids.length) requestAnimationFrame(() => placeItems(sorted, newAids));
+        if (newAids.length) {
+            requestAnimationFrame(() => { placeItems(sorted, newAids); autoFit(); });
+        } else {
+            // Keine neuen Karten, aber Größen könnten sich geändert haben
+            requestAnimationFrame(autoFit);
+        }
     }
 
     /* ---- Neue Karten spiralförmig platzieren (größte zuerst = Mitte) ---- */
     function placeItems(sorted, newAids) {
         const area  = document.getElementById('cloudArea');
-        const areaW = area.clientWidth || 600;
+        const areaW = area.clientWidth  || 600;
+        const areaH = area.clientHeight || 400;
         const cx    = Math.round(areaW / 2);
-        const cy    = 200;
+        const cy    = Math.round(areaH / 2);
         const pad   = 12;
 
         // Bereits platzierte Karten aufnehmen
@@ -581,22 +886,6 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
             card.style.visibility = 'visible';
         });
 
-        // Bereich anpassen, damit alle Karten sichtbar sind
-        if (placed.length) {
-            const minY = Math.min(...placed.map(p => p.y));
-            const maxY = Math.max(...placed.map(p => p.y + p.h));
-            if (minY < 0) {
-                const shift = -minY + 20;
-                cloudLayout.forEach((pos, aid) => {
-                    pos.y += shift;
-                    const c = document.getElementById('c' + aid);
-                    if (c) c.style.top = pos.y + 'px';
-                });
-                area.style.height = (maxY + shift + 40) + 'px';
-            } else {
-                area.style.height = (maxY + 40) + 'px';
-            }
-        }
     }
 
     function applySize(card, sz) {
@@ -649,6 +938,69 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
         });
     });
 
+    /* ---- ARASAAC-Symbolliste im Modal ---- */
+    let lastCloudItems = [];
+    document.getElementById('arasaacModal')?.addEventListener('click', function(e) {
+        if (e.target !== this) return;
+    });
+    document.querySelector('[onclick*="arasaacModal"]')?.addEventListener('click', function() {
+        const list = document.getElementById('arasaacSymbolList');
+        if (!list) return;
+        list.innerHTML = '';
+        // ARASAAC-Symbole = positive IDs aus PRESETS + Cloud
+        const seen = new Set();
+        const add = (id, label) => {
+            if (id <= 0 || seen.has(id)) return;
+            seen.add(id);
+            const d = document.createElement('div');
+            d.style.cssText = 'display:flex;flex-direction:column;align-items:center;width:72px;text-align:center;';
+            d.innerHTML = `<img src="${CDN}/${id}/${id}_300.png"
+                style="width:52px;height:52px;object-fit:contain;" loading="lazy" alt="">
+                <span style="font-size:10px;color:#374151;margin-top:4px;word-break:break-word;">${esc(label)}</span>`;
+            list.appendChild(d);
+        };
+        PRESETS.forEach(p => add(p.id, p.label));
+        lastCloudItems.forEach(i => add(+i.arasaac_id, i.label));
+        if (!seen.size) list.innerHTML = '<p style="color:#9ca3af;font-size:13px;">Keine ARASAAC-Symbole in dieser Sitzung.</p>';
+    });
+
+    /* ---- PNG-Export ---- */
+    document.getElementById('exportPngBtn')?.addEventListener('click', function() {
+        const area = document.getElementById('cloudArea');
+        if (!area) return;
+        if (typeof html2canvas === 'undefined') {
+            alert('html2canvas nicht geladen.');
+            return;
+        }
+        html2canvas(area, { backgroundColor: '#f0f2f8', useCORS: true }).then(canvas => {
+            const a = document.createElement('a');
+            a.href     = canvas.toDataURL('image/png');
+            a.download = 'wortwolke.png';
+            a.click();
+        });
+    });
+
+    /* ---- Zoom-Steuerung ---- */
+    document.getElementById('zoomInBtn')?.addEventListener('click', () => {
+        currentZoom = Math.min(currentZoom * 1.25, 4);
+        autoFit();
+    });
+    document.getElementById('zoomOutBtn')?.addEventListener('click', () => {
+        currentZoom = Math.max(currentZoom * 0.8, 0.15);
+        autoFit();
+    });
+    document.getElementById('zoomFitBtn')?.addEventListener('click', () => {
+        currentZoom = 1.0;
+        autoFit();
+    });
+    window.addEventListener('resize', () => {
+        if (DISPLAY_MODE === 'list' || DISPLAY_MODE === 'umfrage') {
+            if (lastCloudItems.length) renderCloud(lastCloudItems);
+        } else if (cloudLayout.size) {
+            autoFit();
+        }
+    });
+
     /* ---- Start ---- */
     pollCloud();
     setInterval(pollCloud, POLL_MS);
@@ -658,5 +1010,6 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
 <?php endif; ?>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 </body>
 </html>

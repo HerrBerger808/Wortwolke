@@ -1,7 +1,10 @@
 <?php
 // Shared form partial for create.php and edit.php
-// Requires: $session array with 'title', 'mode', 'predefined_symbols'
+// Requires: $session array with 'title', 'mode', 'predefined_symbols', 'display_mode', 'max_symbols'
 // Requires: $existingJs (JSON-encoded symbol array for JS)
+$effMax = ($session['max_symbols'] ?? 0) > 0
+    ? min((int)$session['max_symbols'], WordCloudManager::MAX_SYMBOLS_ABS)
+    : WordCloudManager::MAX_SYMBOLS_ABS;
 ?>
 <div class="row g-4">
 
@@ -26,7 +29,7 @@
                 <?php
                 $modes = [
                     'symbols' => ['Nur Symbole', 'images',  'primary',
-                        'Admin wählt bis zu 20 Symbole vor. Teilnehmer klicken nur auf vorgegebene Bilder.'],
+                        'Admin wählt Symbole vor. Teilnehmer klicken nur auf vorgegebene Bilder.'],
                     'search'  => ['Nur Suche',   'search',  'success',
                         'Teilnehmer suchen selbst nach ARASAAC-Symbolen und fügen sie der Wolke hinzu.'],
                     'both'    => ['Beides',       'grid',    'warning',
@@ -45,6 +48,44 @@
                     </div>
                 </label>
                 <?php endforeach; ?>
+
+                <div class="mt-4">
+                    <label class="form-label fw-semibold">Darstellungsmodus</label>
+                    <?php
+                    $curDm = $session['display_mode'] ?? 'cloud';
+                    $dmOpts = [
+                        'cloud'   => ['bi-cloud-fill',     'Wolke',   'Spiralförmig, Größe nach Stimmenzahl'],
+                        'list'    => ['bi-bar-chart-fill', 'Reihe',   'Von groß nach klein nebeneinander'],
+                        'umfrage' => ['bi-list-ol',        'Umfrage', 'Rangliste mit Platz &amp; Stimmenzahl je Zeile'],
+                    ];
+                    foreach ($dmOpts as $val => [$icon, $lbl, $desc]):
+                    ?>
+                    <label class="d-flex align-items-start gap-3 p-2 mb-1 border rounded cursor-pointer mode-opt">
+                        <input type="radio" name="display_mode" value="<?= $val ?>" class="mt-1 flex-shrink-0"
+                               <?= ($curDm === $val) ? 'checked' : '' ?>>
+                        <div>
+                            <div class="fw-semibold small">
+                                <i class="bi <?= $icon ?> text-indigo me-1"></i><?= $lbl ?>
+                            </div>
+                            <small class="text-muted"><?= $desc ?></small>
+                        </div>
+                    </label>
+                    <?php endforeach; ?>
+                </div>
+
+                <div class="mt-3">
+                    <label class="form-label fw-semibold" for="maxSymbolsInput">Max. Optionen</label>
+                    <div class="input-group" style="max-width:220px;">
+                        <input type="number" name="max_symbols" id="maxSymbolsInput"
+                               class="form-control" min="0" max="<?= WordCloudManager::MAX_SYMBOLS_ABS ?>"
+                               value="<?= (int)($session['max_symbols'] ?? 0) ?>"
+                               oninput="updateMaxSym(this.value)">
+                        <span class="input-group-text">Symbole</span>
+                    </div>
+                    <div class="text-muted small mt-1">
+                        0 = unbegrenzt (bis zu <?= WordCloudManager::MAX_SYMBOLS_ABS ?>)
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -54,7 +95,7 @@
         <div class="card border-0 shadow-sm">
             <div class="card-header d-flex justify-content-between align-items-center fw-semibold bg-white">
                 <span><i class="bi bi-images me-2 text-primary"></i>Symbole festlegen</span>
-                <span class="badge bg-secondary" id="symCount">0 / <?= WordCloudManager::MAX_SYMBOLS ?></span>
+                <span class="badge bg-secondary" id="symCount">0 / <?= $effMax ?></span>
             </div>
             <div class="card-body">
 
@@ -109,3 +150,15 @@
         </div>
     </div>
 </div>
+
+<script>
+function updateMaxSym(val) {
+    const abs = <?= WordCloudManager::MAX_SYMBOLS_ABS ?>;
+    let n = parseInt(val) || 0;
+    if (n < 0) n = 0;
+    if (n > abs) n = abs;
+    window._maxSym = n > 0 ? n : abs;
+    document.getElementById('symCount').textContent = symbols.length + ' / ' + window._maxSym;
+}
+window._maxSym = <?= $effMax ?>;
+</script>
