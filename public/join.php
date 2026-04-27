@@ -152,6 +152,39 @@ $presetsJson = $session
                         color: #374151; min-width: 52px; flex-shrink: 0; line-height: 1.1; }
         .survey-votes-lbl { display: block; font-size: 10px; font-weight: 400; color: #9ca3af; }
 
+        /* ---- Limit-Anzeige ---- */
+        .vote-limit-bar {
+            background: #fff; border-bottom: 1px solid #e5e7eb;
+            padding: 9px 20px; display: flex; align-items: center;
+            gap: 14px; flex-shrink: 0; font-size: 13px;
+        }
+        .vote-limit-label { font-weight: 700; color: #374151; white-space: nowrap; flex-shrink: 0; }
+        .vote-limit-dots  { display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
+        .vote-dot-slot {
+            width: 18px; height: 18px; border-radius: 50%;
+            background: #e5e7eb; border: 2px solid #d1d5db;
+            transition: background .25s, border-color .25s;
+        }
+        .vote-dot-slot.filled { background: #4f46e5; border-color: #4f46e5; }
+        .vote-limit-bar.at-limit .vote-dot-slot.filled { background: #f59e0b; border-color: #f59e0b; }
+        .vote-limit-track {
+            flex: 1; background: #e5e7eb; border-radius: 6px; height: 12px; min-width: 60px;
+        }
+        .vote-limit-fill {
+            background: #4f46e5; border-radius: 6px; height: 12px;
+            transition: width .4s ease; min-width: 0;
+        }
+        .vote-limit-bar.at-limit .vote-limit-fill { background: #f59e0b; }
+        .vote-limit-counter {
+            font-weight: 700; color: #4f46e5; white-space: nowrap;
+            min-width: 44px; text-align: right; flex-shrink: 0;
+        }
+        .vote-limit-bar.at-limit .vote-limit-counter { color: #f59e0b; }
+        .vote-limit-msg {
+            font-size: 11px; color: #6b7280; white-space: nowrap; flex-shrink: 0;
+        }
+        .vote-limit-bar.at-limit .vote-limit-msg { color: #d97706; font-weight: 600; }
+
         /* ---- Limit erreicht: inaktive Symbole ---- */
         .sym-card.vote-disabled  { opacity: .4; cursor: not-allowed; }
         .sym-card.vote-disabled:hover  { transform: none; border-color: #e5e7eb;
@@ -418,6 +451,26 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
         </div>
         <?php endforeach; ?>
     </div>
+</div>
+<?php endif; ?>
+
+<?php if (!empty($session['max_symbols'])): ?>
+<!-- Limit-Anzeige -->
+<div class="vote-limit-bar" id="voteLimitBar">
+    <span class="vote-limit-label">
+        <i class="bi bi-check2-square me-1"></i>Deine Auswahl
+    </span>
+    <?php if ((int)$session['max_symbols'] <= 10): ?>
+    <div class="vote-limit-dots" id="voteDots">
+        <?php for ($i = 0; $i < (int)$session['max_symbols']; $i++): ?>
+        <div class="vote-dot-slot" id="dot<?= $i ?>"></div>
+        <?php endfor; ?>
+    </div>
+    <?php else: ?>
+    <div class="vote-limit-track"><div class="vote-limit-fill" id="voteLimitFill" style="width:0%"></div></div>
+    <?php endif; ?>
+    <span class="vote-limit-counter" id="voteLimitCounter">0&nbsp;/&nbsp;<?= (int)$session['max_symbols'] ?></span>
+    <span class="vote-limit-msg" id="voteLimitMsg"><?= (int)$session['max_symbols'] ?> Auswahl<?= (int)$session['max_symbols'] !== 1 ? 'en' : '' ?> möglich</span>
 </div>
 <?php endif; ?>
 
@@ -906,8 +959,38 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
         if (lbl) lbl.style.fontSize = sz.font + 'px';
     }
 
+    function updateVoteLimit() {
+        if (!MAX_VOTES) return;
+        const used    = myVotes.size;
+        const atLimit = used >= MAX_VOTES;
+        const bar     = document.getElementById('voteLimitBar');
+        if (bar) bar.classList.toggle('at-limit', atLimit);
+
+        // Dots (limit ≤ 10)
+        for (let i = 0; i < MAX_VOTES; i++) {
+            const d = document.getElementById('dot' + i);
+            if (d) d.classList.toggle('filled', i < used);
+        }
+
+        // Fortschrittsbalken (limit > 10)
+        const fill = document.getElementById('voteLimitFill');
+        if (fill) fill.style.width = Math.round(used / MAX_VOTES * 100) + '%';
+
+        const counter = document.getElementById('voteLimitCounter');
+        if (counter) counter.innerHTML = used + '&nbsp;/&nbsp;' + MAX_VOTES;
+
+        const msg = document.getElementById('voteLimitMsg');
+        if (msg) {
+            const rem = MAX_VOTES - used;
+            msg.textContent = atLimit
+                ? 'Limit erreicht'
+                : rem + ' Auswahl' + (rem !== 1 ? 'en' : '') + ' verbleibend';
+        }
+    }
+
     function updateVoteUI() {
         const atLimit = MAX_VOTES > 0 && myVotes.size >= MAX_VOTES;
+        updateVoteLimit();
 
         // Preset-Karten
         PRESETS.forEach(p => {
@@ -927,15 +1010,9 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
         const n  = myVotes.size;
         const el = document.getElementById('myVotesInfo');
         if (el) {
-            let txt = n === 0 ? 'Noch keine Stimme – klicke auf ein Symbol.'
-                    : n === 1 ? '1 Symbol gewählt · Nochmals klicken = zurückziehen.'
-                               : n + ' Symbole gewählt · Nochmals klicken = zurückziehen.';
-            if (MAX_VOTES > 0) {
-                txt += atLimit
-                    ? ' · Limit erreicht (' + MAX_VOTES + '/' + MAX_VOTES + ').'
-                    : ' · Noch ' + (MAX_VOTES - n) + ' von ' + MAX_VOTES + ' möglich.';
-            }
-            el.textContent = txt;
+            el.textContent = n === 0 ? 'Noch keine Stimme – klicke auf ein Symbol.'
+                           : n === 1 ? '1 Symbol gewählt · Nochmals klicken = zurückziehen.'
+                                     : n + ' Symbole gewählt · Nochmals klicken = zurückziehen.';
         }
     }
 
