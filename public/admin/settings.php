@@ -17,15 +17,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $retDays        = max(0, min(365, (int) ($_POST['ret_days']    ?? 0)));
     $retHours       = max(0, min(23,  (int) ($_POST['ret_hours']   ?? 0)));
     $retTotalHours  = $retDays * 24 + $retHours;
-    $guestMaxActive = max(0, (int) ($_POST['guest_max_active'] ?? 0));
-    $displayMode    = in_array($_POST['display_mode'] ?? '', ['cloud','list','umfrage']) ? $_POST['display_mode'] : 'cloud';
-    $impressumUrl   = trim($_POST['impressum_url'] ?? '');
+    $guestMaxActive  = max(0, (int) ($_POST['guest_max_active'] ?? 0));
+    $guestExpiryMode = in_array($_POST['guest_expiry_mode'] ?? '', ['creation','activity']) ? $_POST['guest_expiry_mode'] : 'creation';
+    $displayMode     = in_array($_POST['display_mode'] ?? '', ['cloud','list','umfrage']) ? $_POST['display_mode'] : 'cloud';
+    $impressumUrl    = trim($_POST['impressum_url'] ?? '');
     if ($impressumUrl && !filter_var($impressumUrl, FILTER_VALIDATE_URL)) $impressumUrl = '';
 
     $mgr->setSetting('guest_sessions_enabled',  $guestEnabled);
     $mgr->setSetting('guest_session_hours',     (string) $totalHours);
     $mgr->setSetting('guest_retention_hours',   (string) $retTotalHours);
     $mgr->setSetting('guest_max_active',        (string) $guestMaxActive);
+    $mgr->setSetting('guest_expiry_mode',       $guestExpiryMode);
     $mgr->setSetting('cloud_display_mode',      $displayMode);
     $mgr->setSetting('impressum_url',           $impressumUrl);
     $saved = true;
@@ -39,6 +41,8 @@ $retTotalHours   = max(0, (int) $mgr->getSetting('guest_retention_hours', '0'));
 $currentRetDays  = intdiv($retTotalHours, 24);
 $currentRetHours = $retTotalHours % 24;
 $guestMaxActive  = max(0, (int) $mgr->getSetting('guest_max_active', '0'));
+$guestExpiryMode = $mgr->getSetting('guest_expiry_mode', 'creation');
+if (!in_array($guestExpiryMode, ['creation','activity'])) $guestExpiryMode = 'creation';
 $displayMode     = $mgr->getSetting('cloud_display_mode', 'cloud');
 if (!in_array($displayMode, ['cloud','list','umfrage'])) $displayMode = 'cloud';
 $impressumUrl    = $mgr->getSetting('impressum_url', '');
@@ -142,6 +146,27 @@ echo renderFlash();
                     <span class="input-group-text">Stück</span>
                 </div>
                 <div class="text-muted small mb-3">0 = unbegrenzt</div>
+
+                <!-- Ablaufmodus -->
+                <label class="form-label fw-semibold">Ablauf gerechnet ab</label>
+                <div class="d-flex gap-3 mb-3 flex-wrap">
+                    <label class="d-flex align-items-center gap-2 cursor-pointer">
+                        <input type="radio" name="guest_expiry_mode" value="creation"
+                               <?= $guestExpiryMode === 'creation' ? 'checked' : '' ?>>
+                        <span>
+                            <span class="fw-semibold">Erstellung</span>
+                            <span class="text-muted small d-block">Ablauf fix ab dem Zeitpunkt der Erstellung</span>
+                        </span>
+                    </label>
+                    <label class="d-flex align-items-center gap-2 cursor-pointer">
+                        <input type="radio" name="guest_expiry_mode" value="activity"
+                               <?= $guestExpiryMode === 'activity' ? 'checked' : '' ?>>
+                        <span>
+                            <span class="fw-semibold">Letzter Abstimmung</span>
+                            <span class="text-muted small d-block">Ablauf verlängert sich bei jeder Abstimmung</span>
+                        </span>
+                    </label>
+                </div>
 
                 <hr class="my-3">
                 <div class="text-muted small">

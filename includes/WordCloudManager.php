@@ -39,8 +39,7 @@ class WordCloudManager
     public function setSetting(string $key, string $value): void
     {
         $this->db->prepare(
-            "INSERT INTO wordcloud_settings (setting_key, setting_value) VALUES (:k, :v)
-             ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)"
+            "REPLACE INTO wordcloud_settings (setting_key, setting_value) VALUES (:k, :v)"
         )->execute([':k' => $key, ':v' => $value]);
     }
 
@@ -257,34 +256,25 @@ class WordCloudManager
     public function cleanupExpiredGuestSessions(): void
     {
         try {
+            $now = date('Y-m-d H:i:s');
+
             // 1. Abgelaufene aktive Sitzungen schließen
-            $this->db->exec(
+            $this->db->prepare(
                 "UPDATE wordcloud_sessions SET status = 'closed'
-                 WHERE is_guest = 1 AND status = 'active' AND expires_at < NOW()"
-            );
+                 WHERE is_guest = 1 AND status = 'active' AND expires_at < :now"
+            )->execute([':now' => $now]);
 
             // 2. Sitzungen nach Ablauf der Aufbewahrungsfrist löschen
-            $retHours = 0;
-            try {
-                $r = $this->db->prepare(
-                    "SELECT setting_value FROM wordcloud_settings WHERE setting_key = 'guest_retention_hours'"
-                );
-                $r->execute();
-                $retHours = max(0, (int) ($r->fetchColumn() ?: 0));
-            } catch (\Throwable $e) {}
+            $retHours = max(0, (int) $this->getSetting('guest_retention_hours', '0'));
+            $cutoff   = $retHours > 0
+                ? date('Y-m-d H:i:s', time() - $retHours * 3600)
+                : $now;
 
-            if ($retHours > 0) {
-                $stmt = $this->db->prepare(
-                    "SELECT id FROM wordcloud_sessions
-                     WHERE is_guest = 1 AND expires_at < DATE_SUB(NOW(), INTERVAL :h HOUR)"
-                );
-                $stmt->execute([':h' => $retHours]);
-            } else {
-                $stmt = $this->db->query(
-                    "SELECT id FROM wordcloud_sessions
-                     WHERE is_guest = 1 AND expires_at < NOW()"
-                );
-            }
+            $stmt = $this->db->prepare(
+                "SELECT id FROM wordcloud_sessions
+                 WHERE is_guest = 1 AND expires_at < :cutoff"
+            );
+            $stmt->execute([':cutoff' => $cutoff]);
             foreach ($stmt->fetchAll() as $row) {
                 $this->deleteSession((int) $row['id']);
             }
@@ -298,7 +288,7 @@ class WordCloudManager
     public function toggleVote(int $sessionId, string $token, int $arasaacId, string $label): array
     {
         $stmt = $this->db->prepare(
-            "SELECT status, max_symbols FROM wordcloud_sessions WHERE id = :id"
+            "SELECT status, max_symbols, is_guest FROM wordcloud_sessions WHERE id = :id"
         );
         $stmt->execute([':id' => $sessionId]);
         $session = $stmt->fetch();
