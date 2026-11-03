@@ -44,6 +44,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['step'])) {
         } else {
             $dbPath = trim($_POST['db_path'] ?? (APP_ROOT . '/data/wordcloud.sqlite'));
             if (empty($dbPath)) $dbPath = APP_ROOT . '/data/wordcloud.sqlite';
+            // Prevent placing the database inside the web root (public/)
+            $publicReal = realpath(APP_ROOT . '/public') ?: (APP_ROOT . '/public');
+            $dbReal     = realpath(dirname($dbPath)) ?: dirname($dbPath);
+            if (str_starts_with($dbReal . '/', $publicReal . '/')) {
+                $errors[] = 'Die SQLite-Datei darf nicht im Web-Root (public/) liegen.';
+            }
             if (empty($errors)) {
                 $test = DB::testSQLite($dbPath);
                 if (!$test['success']) $errors[] = 'SQLite-Datei nicht anlegbar: ' . $test['error'];
