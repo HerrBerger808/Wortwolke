@@ -124,6 +124,13 @@ $presetsJson = $session
                    transition: font-size .45s ease; max-width: 120px; word-break: break-word; }
         .sym-card.voted .sym-lbl { color: #4f46e5; font-weight: 600; }
         .sym-votes { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+        .sym-tts { background: none; border: 1px solid transparent; padding: 1px 5px;
+                   font-size: 12px; color: #c4c9d4; cursor: pointer; border-radius: 6px;
+                   margin-top: 2px; line-height: 1;
+                   transition: color .15s, background .15s, border-color .15s; }
+        .sym-tts:hover { color: #4f46e5; background: #ede9fe; border-color: #a5b4fc; }
+        .sym-tts:active { transform: scale(.9); }
+        .survey-row .sym-tts { margin-top: 0; flex-shrink: 0; align-self: center; }
 
         /* ---- Umfrage-Darstellung ---- */
         .survey-row {
@@ -761,6 +768,8 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
                      style="width:${sz.img}px;height:${sz.img}px;object-fit:contain;">
                 <span class="sym-lbl" style="font-size:${sz.font}px;">${esc(item.label)}</span>
                 <span class="sym-votes">${item.vote_count} ×</span>`;
+            const ttsL = makeTtsBtn(item.label);
+            if (ttsL) card.appendChild(ttsL);
             card.classList.toggle('voted', myVotes.has(aid));
             card.addEventListener('click', () => toggleVote(aid, item.label));
             canvas.appendChild(card);
@@ -812,6 +821,8 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
                     `<div class="survey-bar-wrap"><div class="survey-bar" style="width:${pct}%"></div></div>` +
                 `</div>` +
                 `<div class="survey-votes">${votes}<span class="survey-votes-lbl">Stimmen</span></div>`;
+            const ttsS = makeTtsBtn(item.label);
+            if (ttsS) row.appendChild(ttsS);
             row.addEventListener('click', () => toggleVote(aid, item.label));
             canvas.appendChild(row);
         });
@@ -870,6 +881,8 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
                          style="width:${sz.img}px;height:${sz.img}px;object-fit:contain;">
                     <span class="sym-lbl" style="font-size:${sz.font}px;">${esc(item.label)}</span>
                     <span class="sym-votes">${item.vote_count} ×</span>`;
+                const ttsC = makeTtsBtn(item.label);
+                if (ttsC) card.appendChild(ttsC);
                 card.addEventListener('click', () => toggleVote(aid, item.label));
                 canvas.appendChild(card);
                 newAids.push(aid);
@@ -1043,8 +1056,28 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
             .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
+    /* ---- TTS-Hilfsfunktion (Einzelkarte vorlesen) ---- */
+    function makeTtsBtn(label) {
+        if (!('speechSynthesis' in window)) return null;
+        const btn = document.createElement('button');
+        btn.className = 'sym-tts';
+        btn.title = label + ' vorlesen';
+        btn.innerHTML = '<i class="bi bi-volume-up"></i>';
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            window.speechSynthesis.cancel();
+            const utt = new SpeechSynthesisUtterance(label);
+            utt.lang = 'de-DE';
+            utt.rate = 0.9;
+            window.speechSynthesis.speak(utt);
+        });
+        return btn;
+    }
+
     /* ---- Preset-Karten: Click-Handler ---- */
     document.querySelectorAll('#presetRow .sym-card').forEach(card => {
+        const ttsBtn = makeTtsBtn(card.dataset.label);
+        if (ttsBtn) card.appendChild(ttsBtn);
         card.addEventListener('click', () => {
             toggleVote(+card.dataset.aid, card.dataset.label);
         });
