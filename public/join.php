@@ -124,11 +124,12 @@ $presetsJson = $session
                    transition: font-size .45s ease; max-width: 120px; word-break: break-word; }
         .sym-card.voted .sym-lbl { color: #4f46e5; font-weight: 600; }
         .sym-votes { font-size: 11px; color: #9ca3af; margin-top: 2px; }
-        .sym-tts { background: none; border: 1px solid transparent; padding: 1px 5px;
-                   font-size: 12px; color: #c4c9d4; cursor: pointer; border-radius: 6px;
-                   margin-top: 2px; line-height: 1;
-                   transition: color .15s, background .15s, border-color .15s; }
-        .sym-tts:hover { color: #4f46e5; background: #ede9fe; border-color: #a5b4fc; }
+        .sym-tts { background: #f3f4f6; border: 1px solid #d1d5db; padding: 3px 7px;
+                   font-size: 14px; color: #4b5563; cursor: pointer; border-radius: 7px;
+                   margin-top: 4px; line-height: 1; font-weight: 500;
+                   transition: color .15s, background .15s, border-color .15s, box-shadow .15s; }
+        .sym-tts:hover { color: #4f46e5; background: #ede9fe; border-color: #a5b4fc;
+                         box-shadow: 0 1px 4px rgba(79,70,229,.2); }
         .sym-tts:active { transform: scale(.9); }
         .survey-row .sym-tts { margin-top: 0; flex-shrink: 0; align-self: center; }
 
