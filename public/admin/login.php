@@ -9,7 +9,9 @@ if (Auth::check()) {
 }
 
 $error    = '';
-$redirect = get('redirect', '/admin/');
+$raw      = get('redirect', '/admin/');
+// Only allow relative paths starting with / but not // (prevents open redirect)
+$redirect = (str_starts_with($raw, '/') && !str_starts_with($raw, '//')) ? $raw : '/admin/';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = $_POST['username'] ?? '';
