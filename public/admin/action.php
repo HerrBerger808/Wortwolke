@@ -22,6 +22,20 @@ if (!$session) {
     exit;
 }
 
+// Lehrer dürfen nur eigene, nicht-Gast-Sitzungen verwalten
+if (!Auth::isAdmin()) {
+    if (!empty($session['is_guest'])) {
+        setFlash('danger', 'Keine Berechtigung.');
+        header('Location: /admin/');
+        exit;
+    }
+    if ((int)($session['created_by'] ?? 0) !== Auth::currentUserId()) {
+        setFlash('danger', 'Keine Berechtigung.');
+        header('Location: /admin/');
+        exit;
+    }
+}
+
 $title = $session['title'];
 
 match ($action) {

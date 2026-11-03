@@ -4,23 +4,45 @@ require_once APP_ROOT . '/includes/bootstrap.php';
 require_once __DIR__ . '/layout.php';
 Auth::require();
 
-$mgr      = new WordCloudManager();
-$sessions = $mgr->getSessions();
-$active   = array_filter($sessions, fn($s) => $s['status'] === 'active');
-$closed   = array_filter($sessions, fn($s) => $s['status'] === 'closed');
+$mgr     = new WordCloudManager();
+$pdo     = DB::get();
+$isAdmin = Auth::isAdmin();
+
+// Benutzerfilter: Admin kann ?user_id=X übergeben, normaler Nutzer sieht nur eigene
+$filterUserId = null;
+$filterUser   = null;
+if ($isAdmin && isset($_GET['user_id'])) {
+    $filterUserId = (int) $_GET['user_id'];
+    $row = $pdo->prepare("SELECT id, username FROM wordcloud_users WHERE id = :id");
+    $row->execute([':id' => $filterUserId]);
+    $filterUser = $row->fetch() ?: null;
+    if (!$filterUser) $filterUserId = null;
+} elseif (!$isAdmin) {
+    $filterUserId = Auth::currentUserId() ?: null;
+}
+
+$sessions   = $mgr->getSessions(null, false, $filterUserId);
+$active     = array_filter($sessions, fn($s) => $s['status'] === 'active');
+$closed     = array_filter($sessions, fn($s) => $s['status'] === 'closed');
+$guestCount = $isAdmin ? count($mgr->getSessions(null, true)) : 0;
 
 adminHead('Übersicht');
 adminNav('/admin/');
 echo renderFlash();
 ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
     <h2 class="fw-bold mb-0">
         <i class="bi bi-grid-fill text-indigo me-2"></i>Wortwolken-Sitzungen
     </h2>
-    <a href="/admin/create.php" class="btn btn-primary">
-        <i class="bi bi-plus-lg me-1"></i>Neue Sitzung
-    </a>
+    <div class="d-flex gap-2">
+        <a href="/admin/export.php?type=sessions" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-download me-1"></i>CSV-Export
+        </a>
+        <a href="/admin/create.php" class="btn btn-primary">
+            <i class="bi bi-plus-lg me-1"></i>Neue Sitzung
+        </a>
+    </div>
 </div>
 
 <div class="alert alert-light border small py-2 mb-4">
@@ -29,6 +51,16 @@ echo renderFlash();
     und geben den 6-stelligen Code ein – oder direkt
     <strong>/join.php?code=XXXXXX</strong>
 </div>
+
+<?php if ($guestCount > 0): ?>
+<div class="alert alert-warning border-0 py-2 mb-4 d-flex align-items-center gap-2">
+    <i class="bi bi-person-plus-fill"></i>
+    <span>
+        <strong><?= $guestCount ?></strong> aktive Gastsitzung<?= $guestCount != 1 ? 'en' : '' ?> vorhanden.
+        <a href="/admin/guests.php" class="alert-link ms-1">Gastsitzungen anzeigen →</a>
+    </span>
+</div>
+<?php endif; ?>
 
 <?php if (empty($sessions)): ?>
 <div class="card border-0 shadow-sm">

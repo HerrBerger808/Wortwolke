@@ -75,6 +75,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $ok = 'Passwort wurde geändert.';
         }
     }
+
+    if ($act === 'toggle_admin') {
+        $uid = (int) post('id');
+        if ($uid === Auth::currentUserId()) {
+            $errors[] = 'Sie können Ihre eigene Rolle nicht ändern.';
+        } elseif ($uid > 0) {
+            $row = $pdo->prepare("SELECT username, is_admin FROM wordcloud_users WHERE id = :id");
+            $row->execute([':id' => $uid]);
+            $target = $row->fetch();
+            if ($target) {
+                if ($target['is_admin']) {
+                    // Letzten Admin nicht degradieren
+                    $cnt = (int) $pdo->query("SELECT COUNT(*) FROM wordcloud_users WHERE is_admin = 1")->fetchColumn();
+                    if ($cnt <= 1) {
+                        $errors[] = 'Der letzte Administrator kann nicht zum Lehrer degradiert werden.';
+                    }
+                }
+                if (empty($errors)) {
+                    $newRole = $target['is_admin'] ? 0 : 1;
+                    $pdo->prepare("UPDATE wordcloud_users SET is_admin = :a WHERE id = :id")
+                        ->execute([':a' => $newRole, ':id' => $uid]);
+                    $ok = 'Rolle von "' . $target['username'] . '" auf '
+                        . ($newRole ? 'Admin' : 'Lehrer') . ' geändert.';
+                }
+            }
+        }
+    }
 }
 
 $users = $pdo->query("SELECT id, username, is_admin, created_at FROM wordcloud_users ORDER BY id")->fetchAll();
@@ -136,17 +163,32 @@ echo renderFlash();
                     <?php if ($u['is_admin']): ?>
                         <span class="badge bg-danger"><i class="bi bi-shield-fill me-1"></i>Admin</span>
                     <?php else: ?>
-                        <span class="badge bg-secondary">Benutzer</span>
+                        <span class="badge bg-secondary"><i class="bi bi-person-fill me-1"></i>Lehrer</span>
                     <?php endif; ?>
                 </td>
                 <td class="text-muted small"><?= fmtDate($u['created_at']) ?></td>
                 <td class="text-end">
                     <div class="btn-group btn-group-sm">
+                        <a href="/admin/?user_id=<?= $u['id'] ?>" class="btn btn-outline-primary"
+                           title="Sitzungen dieses Benutzers anzeigen">
+                            <i class="bi bi-grid"></i>
+                        </a>
                         <button class="btn btn-outline-secondary" title="Passwort ändern"
                                 onclick="openPwModal(<?= $u['id'] ?>, '<?= e(addslashes($u['username'])) ?>')">
                             <i class="bi bi-key"></i>
                         </button>
                         <?php if ($u['id'] !== Auth::currentUserId()): ?>
+                        <form method="POST" class="d-inline">
+                            <?= Auth::csrfInput() ?>
+                            <input type="hidden" name="action" value="toggle_admin">
+                            <input type="hidden" name="id" value="<?= $u['id'] ?>">
+                            <button type="submit"
+                                    class="btn <?= $u['is_admin'] ? 'btn-outline-warning' : 'btn-outline-success' ?>"
+                                    title="<?= $u['is_admin'] ? 'Zu Lehrer degradieren' : 'Zu Admin befördern' ?>"
+                                    onclick="return confirm('Rolle von &quot;<?= e(addslashes($u['username'])) ?>&quot; ändern?')">
+                                <i class="bi bi-<?= $u['is_admin'] ? 'arrow-down-circle' : 'arrow-up-circle' ?>"></i>
+                            </button>
+                        </form>
                         <form method="POST" class="d-inline">
                             <?= Auth::csrfInput() ?>
                             <input type="hidden" name="action" value="delete">
@@ -197,8 +239,9 @@ echo renderFlash();
             <div class="mb-3 form-check">
                 <input type="checkbox" name="is_admin" id="is_admin" class="form-check-input" value="1">
                 <label class="form-check-label small" for="is_admin">
-                    Administrator (darf Benutzer verwalten)
+                    Administrator (darf Benutzer &amp; Einstellungen verwalten, sieht alle Sitzungen)
                 </label>
+                <div class="text-muted small mt-1">Ohne Haken: Lehrer (sieht nur eigene Sitzungen)</div>
             </div>
             <button type="submit" class="btn btn-primary">
                 <i class="bi bi-person-plus me-1"></i>Benutzer anlegen

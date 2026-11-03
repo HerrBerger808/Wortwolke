@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($act === 'delete_symbol') {
         $arasaacId = (int) post('arasaac_id');
-        if ($arasaacId > 0) {
+        if ($arasaacId !== 0) {
             $pdo->prepare(
                 "DELETE FROM wordcloud_votes WHERE session_id = :sid AND arasaac_id = :aid"
             )->execute([':sid' => $id, ':aid' => $arasaacId]);
@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($act === 'delete_vote') {
         $arasaacId = (int) post('arasaac_id');
         $token     = post('token');
-        if ($arasaacId > 0 && $token !== '') {
+        if ($arasaacId !== 0 && $token !== '') {
             $pdo->prepare(
                 "DELETE FROM wordcloud_votes WHERE session_id = :sid AND arasaac_id = :aid AND participant_token = :tok"
             )->execute([':sid' => $id, ':aid' => $arasaacId, ':tok' => $token]);
@@ -89,9 +89,12 @@ echo renderFlash();
             <span class="badge bg-secondary ms-2 font-monospace"><?= e($session['session_code']) ?></span>
         </div>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 flex-wrap">
         <a href="/admin/" class="btn btn-sm btn-outline-secondary">
             <i class="bi bi-arrow-left me-1"></i>Zurück
+        </a>
+        <a href="/admin/export.php?type=votes&id=<?= $id ?>" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-download me-1"></i>CSV-Export
         </a>
         <?php if (!empty($symbols)): ?>
         <form method="POST" class="d-inline">
@@ -116,10 +119,18 @@ echo renderFlash();
 <?php else: ?>
 
 <div class="row g-3">
+<?php
+// Bild-URL-Map für eigene Symbole aufbauen
+$customImgMap = [];
+foreach ($session['predefined_symbols'] as $ps) {
+    $psAid = (int)$ps['arasaac_id'];
+    if ($psAid < 0 && !empty($ps['image_url'])) $customImgMap[$psAid] = $ps['image_url'];
+}
+?>
 <?php foreach ($symbols as $sym):
     $aid         = (int) $sym['arasaac_id'];
     $symVotes    = $votesBySymbol[$aid] ?? [];
-    $imgUrl      = WordCloudManager::ARASAAC_CDN . '/' . $aid . '/' . $aid . '_300.png';
+    $imgUrl      = $customImgMap[$aid] ?? WordCloudManager::ARASAAC_CDN . '/' . $aid . '/' . $aid . '_300.png';
 ?>
 <div class="col-12">
     <div class="card border-0 shadow-sm">
