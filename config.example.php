@@ -9,7 +9,15 @@
  * Die Installation kann auch über install.php vorgenommen werden.
  */
 
-// ---- Datenbank -------------------------------------------------------
+// ===========================================================================
+// Option A: SQLite (kein separater Datenbankserver nötig)
+// ===========================================================================
+// define('DB_TYPE', 'sqlite');
+// define('DB_PATH', '/var/www/html/wortwolke/data/wordcloud.sqlite');
+
+// ===========================================================================
+// Option B: MySQL / MariaDB
+// ===========================================================================
 define('DB_HOST',    'localhost');
 define('DB_PORT',    3306);
 define('DB_NAME',    'wordcloud');

@@ -4,48 +4,63 @@ Kollaboratives Wortwolken-Tool mit [ARASAAC](https://arasaac.org/)-Symbolen für
 
 ## Features
 
-- **Drei Modi** (vom Admin einstellbar pro Sitzung):
-  - **Nur Symbole** – Admin gibt bis zu 20 ARASAAC-Symbole mit eigenen Beschriftungen vor
-  - **Nur Suche** – Teilnehmer suchen selbst nach ARASAAC-Symbolen und fügen sie der Wolke hinzu
-  - **Beides** – Vorgegebene Symbole und freie Suche gleichzeitig verfügbar
+- **Vorlesefunktion** – Text-to-Speech liest das Ergebnis auf Knopfdruck vor (Web Speech API, kein Server nötig)
+- **Drei Darstellungsmodi** (einstellbar pro Sitzung):
+  - **Wolke** – Spiralförmig, Größe nach Stimmenzahl
+  - **Reihe** – Von groß nach klein nebeneinander
+  - **Umfrage** – Rangliste mit Platz und Stimmenzahl je Zeile
+- **Drei Eingabe-Modi**:
+  - **Nur Symbole** – Admin gibt bis zu 50 ARASAAC-Symbole mit eigenen Beschriftungen vor
+  - **Nur Suche** – Teilnehmer suchen selbst nach ARASAAC-Symbolen
+  - **Beides** – Vorgegebene Symbole und freie Suche gleichzeitig
 - **Kollaborativ** – Wolke aktualisiert sich alle 3 Sekunden für alle Teilnehmer live
 - **Anonym** – Teilnehmer benötigen keinen Account; Stimmen werden per Browser-Token verfolgt
+- **Gastsitzungen** – Eigene Sitzungen ohne Admin-Login erstellen
 - **Toggle** – Nochmaliges Klicken zieht die Stimme zurück
-- **Einfache Einrichtung** – Installations-Assistent unter `/install.php`
+- **Einfache Einrichtung** – Installations-Assistent mit MySQL- und SQLite-Option
 
 ## Voraussetzungen
 
-- PHP ≥ 8.0 mit `pdo_mysql`-Extension
-- MariaDB / MySQL ≥ 10.3
+- PHP ≥ 8.0 mit `pdo_mysql` **oder** `pdo_sqlite` Extension
+- MariaDB / MySQL ≥ 10.3 **oder** SQLite (kein separater Server nötig)
 - Apache mit `mod_rewrite` und `mod_headers`
 - Internetzugang (für ARASAAC-API und CDN-Bilder)
 
 ## Installation
 
-### 1. Dateien deployen
+### Option A: SQLite (einfachste Option)
+
+Kein separater Datenbankserver nötig – ideal für kleine Schulinstallationen.
+
+```bash
+git clone <repo-url> /var/www/html/wortwolke
+# Schreibrechte für www-data auf das Datenverzeichnis setzen:
+chown www-data:www-data /var/www/html/wortwolke
+```
+
+Dann `https://ihre-domain.de/install.php` aufrufen und **SQLite** wählen.
+Der Assistent legt die Datenbankdatei automatisch unter `data/wordcloud.sqlite` an.
+
+### Option B: MySQL / MariaDB
 
 ```bash
 git clone <repo-url> /var/www/html/wortwolke
 ```
 
-### 2. MariaDB-Benutzer anlegen
-
+Datenbankbenutzer anlegen:
 ```sql
 CREATE USER 'wordcloud_user'@'localhost' IDENTIFIED BY 'sicheres_passwort';
 GRANT ALL ON wordcloud.* TO 'wordcloud_user'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
-### 3. Installations-Assistent aufrufen
+Dann `https://ihre-domain.de/install.php` aufrufen und **MySQL/MariaDB** wählen.
 
-`https://ihre-domain.de/install.php` im Browser öffnen und Felder ausfüllen.
-Der Assistent erstellt `config.php` und legt die Datenbanktabellen an.
-
-### 4. Apache-Konfiguration
+### Apache-Konfiguration (beide Optionen)
 
 > **Wichtig:** Der DocumentRoot muss auf den Unterordner `public/` zeigen,
-> nicht auf das Repo-Root. So bleiben `includes/` und `config.php` außerhalb
-> der Web-Reichweite.
+> nicht auf das Repo-Root. So bleiben `includes/`, `config.php` und die
+> SQLite-Datei außerhalb der Web-Reichweite.
 
 ```apache
 <VirtualHost *:80>
@@ -55,6 +70,11 @@ Der Assistent erstellt `config.php` und legt die Datenbanktabellen an.
     <Directory /var/www/html/wortwolke/public>
         AllowOverride All
         Require all granted
+    </Directory>
+
+    # SQLite-Datenbankdatei und Konfiguration explizit sperren
+    <Directory /var/www/html/wortwolke/data>
+        Require all denied
     </Directory>
 </VirtualHost>
 ```
