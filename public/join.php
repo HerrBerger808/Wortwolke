@@ -518,6 +518,10 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
                 style="font-size:11px;" title="Wolke als PNG speichern">
             <i class="bi bi-download me-1"></i>PNG
         </button>
+        <button id="ttsBtn" class="btn btn-xs btn-outline-secondary py-0 px-2"
+                style="font-size:11px;display:none;" title="Ergebnis vorlesen (Text-to-Speech)">
+            <i class="bi bi-volume-up me-1"></i>Vorlesen
+        </button>
         <button onclick="document.getElementById('arasaacModal').style.display='flex'"
                 style="background:none;border:none;padding:0;font-size:11px;color:#9ca3af;cursor:pointer;"
                 title="ARASAAC-Symbole – Lizenzinfo anzeigen">
@@ -1108,6 +1112,51 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').rep
             autoFit();
         }
     });
+
+    /* ---- Vorlesefunktion (TTS) ---- */
+    (function() {
+        const btn = document.getElementById('ttsBtn');
+        if (!btn || !('speechSynthesis' in window)) return;
+        btn.style.display = '';
+        let speaking = false;
+
+        function stopTts() {
+            window.speechSynthesis.cancel();
+            speaking = false;
+            btn.innerHTML = '<i class="bi bi-volume-up me-1"></i>Vorlesen';
+            btn.classList.replace('btn-warning', 'btn-outline-secondary');
+        }
+
+        btn.addEventListener('click', function() {
+            if (speaking) { stopTts(); return; }
+            if (!lastCloudItems.length) return;
+
+            const sorted = [...lastCloudItems].sort((a, b) => b.vote_count - a.vote_count);
+            let text = DISPLAY_MODE === 'umfrage'
+                ? 'Umfrageergebnis. '
+                : 'Wortwolken-Ergebnis. ';
+            sorted.forEach((item, i) => {
+                const v = +item.vote_count;
+                const s = v !== 1 ? 'Stimmen' : 'Stimme';
+                if (DISPLAY_MODE === 'umfrage') {
+                    text += `Platz ${i + 1}: ${item.label}, ${v} ${s}. `;
+                } else {
+                    text += `${item.label}, ${v} ${s}. `;
+                }
+            });
+
+            const utt   = new SpeechSynthesisUtterance(text);
+            utt.lang    = 'de-DE';
+            utt.rate    = 0.9;
+            utt.onend   = stopTts;
+            utt.onerror = stopTts;
+            window.speechSynthesis.cancel();
+            window.speechSynthesis.speak(utt);
+            speaking = true;
+            btn.innerHTML = '<i class="bi bi-stop-circle me-1"></i>Stop';
+            btn.classList.replace('btn-outline-secondary', 'btn-warning');
+        });
+    })();
 
     /* ---- Start ---- */
     pollCloud();
